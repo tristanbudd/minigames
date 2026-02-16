@@ -7,6 +7,9 @@ body {
 header {
     height: 4rem;
     border-bottom: #000000 0.2rem solid;
+    position: relative;
+    z-index: 10000;
+    background-color: #FFFFFF;
 }
 
 /* Animations / Keyframes */
@@ -154,6 +157,70 @@ header {
 
 .header-burger.active .burger-line:nth-child(3) {
     transform: translateY(-0.6rem) rotate(-45deg);
+}
+
+/* Mobile Navigation Menu */
+.mobile-nav {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: #FFFFFF;
+    z-index: 9999;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+
+.mobile-nav.active {
+    display: block;
+}
+
+.mobile-nav-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 100%;
+    gap: 2rem;
+}
+
+.mobile-nav-content a {
+    color: #000000;
+    text-decoration: none;
+    font-size: 1.5rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.mobile-nav-content svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: #000000;
+}
+
+.mobile-nav-content a:hover {
+    text-decoration: none;
+}
+
+.mobile-nav-content a.active {
+    font-weight: 600;
+}
+
+.mobile-nav-content a.active::after {
+    content: '';
+    position: absolute;
+    bottom: -0.5rem;
+    left: 0;
+    right: 0;
+    height: 0.2rem;
+    background-color: #000000;
+    border-radius: 0.1rem;
 }
 
 /* Unsupported Resolution Section */
@@ -335,14 +402,14 @@ header {
     .unsupported-resolution {
         display: block;
     }
-    
+
     header,
     main,
     footer,
     nav {
         display: none !important;
     }
-    
+
     body {
         overflow: hidden;
     }
@@ -360,11 +427,21 @@ header {
     .header-logo h1 {
         font-size: 1.25rem;
     }
-    
+
+    header {
+        position: sticky;
+        top: 0;
+    }
+
+    .mobile-nav {
+        top: 4rem;
+        height: calc(100vh - 4rem);
+    }
+
     .header-burger {
         display: flex;
     }
-    
+
     .nav-menu {
         display: none;
         position: absolute;
@@ -378,28 +455,28 @@ header {
         padding: 1rem 2rem;
         gap: 1rem;
     }
-    
+
     .nav-menu a {
         color: #000000;
         text-decoration: none;
         font-size: 1rem;
     }
-    
+
     .nav-menu a:hover {
         text-decoration: underline;
     }
-    
+
     .games-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
         margin: 2rem auto;
         padding: 0 1rem;
     }
-    
+
     .game-card {
         padding: 1.5rem;
     }
-    
+
     .game-icon {
         width: 3rem;
         height: 3rem;

@@ -1,20 +1,35 @@
 "use strict";
 
-const burgerMenu = document.querySelector('.header-burger');
+const burgerMenu = document.querySelector('#header-burger');
+const mobileNav = document.querySelector('#mobile-nav');
 
-burgerMenu.addEventListener('click', function() {
-    burgerMenu.classList.toggle('active');
-
-    const isExpanded = burgerMenu.classList.contains('active');
-    burgerMenu.setAttribute('aria-expanded', isExpanded);
-});
-
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape' && burgerMenu.classList.contains('active')) {
-        burgerMenu.classList.remove('active');
-        burgerMenu.setAttribute('aria-expanded', 'false');
+function setMenuState(isOpen) {
+    if (!burgerMenu || !mobileNav) {
+        return;
     }
-});
 
-burgerMenu.setAttribute('aria-expanded', 'false');
-burgerMenu.setAttribute('aria-label', 'Toggle navigation menu');
+    burgerMenu.classList.toggle('active', isOpen);
+    mobileNav.classList.toggle('active', isOpen);
+    burgerMenu.setAttribute('aria-expanded', String(isOpen));
+}
+
+if (burgerMenu && mobileNav) {
+    burgerMenu.addEventListener('click', function() {
+        setMenuState(!burgerMenu.classList.contains('active'));
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && burgerMenu.classList.contains('active')) {
+            setMenuState(false);
+        }
+    });
+
+    mobileNav.addEventListener('click', function(event) {
+        if (event.target.matches('a')) {
+            setMenuState(false);
+        }
+    });
+
+    setMenuState(false);
+    burgerMenu.setAttribute('aria-label', 'Toggle navigation menu');
+}
