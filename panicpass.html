@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-GB">
 <head>
-    <title>Minigames - Home</title>
+    <title>Minigames - Panic Pass</title>
 
     <!-- Meta Tags -->
     <meta charset="UTF-8">
@@ -24,6 +24,8 @@
     <!-- JavaScript -->
     <script src="js/burgermenu.js" defer></script>
     <script src="js/navbar.js" defer></script>
+
+    <script src="js/panicpass.js" defer></script>
 </head>
 <body>
     <!-- Unsupported Resolution Warning -->
@@ -103,81 +105,90 @@
 
     <!-- Main Page Content -->
     <main id="main-content" role="main">
-        <section class="games-grid" aria-label="Available Games">
-            <a href="panicpass.html" class="game-card" aria-label="Play Panic Pass">
-                <div class="game-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         viewBox="0 0 512 512"
-                         aria-hidden="true">
-                        <g>
-                            <path d="M135.25 38.156c-16.082.46-32.345 7.235-46.47 17.407-17.216 12.4-31.534 30.2-37.31 50.687-5.78 20.488-1.95 44.032 16.155 63.406 14.573 15.595 19.996 29.328 20.563 40.5.566 11.173-3.554 20.304-10.376 27.406-13.643 14.206-37.278 17.995-50.5 6.094l-12.5 13.906c22.224 20.005 56.61 13.645 76.47-7.03 9.93-10.34 16.43-24.836 15.593-41.313-.836-16.478-8.83-34.407-25.594-52.345C67.18 141.782 65.16 126.6 69.47 111.312 73.78 96.025 85.484 80.97 99.72 70.72c14.233-10.253 30.704-15.365 43.218-13.44 9.566 1.474 17.565 6.055 23.062 17.44l15.938-9.19c-8.362-15.432-21.594-24.476-36.157-26.718a57.443 57.443 0 0 0-7.31-.656 61.727 61.727 0 0 0-3.22 0zM243.5 51.563l-120.125 69.374 24.906 43.157c15.03-18.11 33.446-33.898 55-46.344 20.615-11.903 42.444-19.803 64.595-23.938L243.5 51.563zm60.03 57.406c-1.026.01-2.065.034-3.092.06-29.894.803-60.05 8.877-87.813 24.907-88.84 51.298-119.255 164.55-68.03 253.282 51.222 88.73 164.505 119.013 253.343 67.717 88.837-51.295 119.223-164.55 68-253.28-34.666-60.05-97.713-93.346-162.407-92.688z"
-                                  fill="#000"
-                                  fill-opacity="1">
-                            </path>
-                        </g>
-                    </svg>
-                </div>
-                <h2 class="game-title">Panic Pass</h2>
-                <p class="game-description">Type fast. Don’t explode.</p>
-            </a>
+        <section class="game-container" aria-labelledby="game-title">
 
-            <a href="#" class="game-card" aria-label="Play Game #2">
-                <div class="game-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         viewBox="0 0 512 512"
-                         aria-hidden="true">
-                        <g>
-                            <path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zM256 464c-114.7 0-208-93.3-208-208S141.3 48 256 48s208 93.3 208 208-93.3 208-208 208z"
-                                  fill="#000">
-                            </path>
-                            <path d="M256 128c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 208c-44.2 0-80-35.8-80-80s35.8-80 80-80 80 35.8 80 80-35.8 80-80 80z"
-                                  fill="#000">
-                            </path>
-                        </g>
-                    </svg>
-                </div>
-                <h2 class="game-title">Game #2</h2>
-                <p class="game-description">Coming soon</p>
-            </a>
+        <header class="game-header">
+            <h2 id="game-title">Panic Pass</h2>
+            <p class="game-description">Type the word before the bomb explodes. Don't be the last holding it.</p>
+        </header>
 
-            <a href="#" class="game-card" aria-label="Play Game #3">
-                <div class="game-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         viewBox="0 0 512 512"
-                         aria-hidden="true">
-                        <g>
-                            <path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zM256 464c-114.7 0-208-93.3-208-208S141.3 48 256 48s208 93.3 208 208-93.3 208-208 208z"
-                                  fill="#000">
-                            </path>
-                            <path d="M256 128c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 208c-44.2 0-80-35.8-80-80s35.8-80 80-80 80 35.8 80 80-35.8 80-80 80z"
-                                  fill="#000">
-                            </path>
-                        </g>
-                    </svg>
+        <!-- Start Screen (shown initially) -->
+        <section id="start-screen" class="start-screen">
+            <div class="game-mode-selector">
+                <div id="singleplayer-option" class="mode-option" tabindex="0" role="button">
+                    <div class="mode-title">Singleplayer</div>
+                    <div class="mode-description">Play against AI opponents</div>
                 </div>
-                <h2 class="game-title">Game #3</h2>
-                <p class="game-description">Coming soon</p>
-            </a>
+                <div id="multiplayer-option" class="mode-option" tabindex="0" role="button">
+                    <div class="mode-title">Multiplayer</div>
+                    <div class="mode-description">Play with friends (Coming Soon)</div>
+                </div>
+            </div>
 
-            <a href="#" class="game-card" aria-label="Play Game #4">
-                <div class="game-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         viewBox="0 0 512 512"
-                         aria-hidden="true">
-                        <g>
-                            <path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zM256 464c-114.7 0-208-93.3-208-208S141.3 48 256 48s208 93.3 208 208-93.3 208-208 208z"
-                                  fill="#000">
-                            </path>
-                            <path d="M256 128c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 208c-44.2 0-80-35.8-80-80s35.8-80 80-80 80 35.8 80 80-35.8 80-80 80z"
-                                  fill="#000">
-                            </path>
-                        </g>
-                    </svg>
+            <div id="ai-selector" class="ai-selector">
+                <div class="ai-count-label">Number of AI opponents:</div>
+                <div class="ai-count-options">
+                    <button class="ai-count-btn" data-count="1">1</button>
+                    <button class="ai-count-btn" data-count="2">2</button>
+                    <button class="ai-count-btn" data-count="3">3</button>
+                    <button class="ai-count-btn" data-count="4">4</button>
                 </div>
-                <h2 class="game-title">Game #4</h2>
-                <p class="game-description">Coming soon</p>
-            </a>
+            </div>
+
+            <button id="start-game-btn" class="game-button start-button" type="button">Start Game</button>
         </section>
+
+        <!-- Game Screen (hidden initially) -->
+        <section id="game-screen" class="game-screen" style="display: none;">
+
+        <!-- Round Info -->
+        <section class="round-info" aria-live="polite">
+            <div class="round-display">
+                <span class="round-label">Round:</span>
+                <span id="round-number" class="round-number">1</span>
+            </div>
+            <div class="players-alive">
+                <span class="players-label">Players:</span>
+                <span id="players-count" class="players-count">3</span>
+            </div>
+        </section>
+
+        <!-- Game Status -->
+        <section class="game-status" aria-live="polite" aria-atomic="true">
+            <div class="timer-wrapper">
+                <span class="timer-label">Time:</span>
+                <span id="game-timer" class="game-timer">10.0</span>
+                <span class="timer-unit">s</span>
+            </div>
+            <p id="status-message" class="status-message"></p>
+        </section>
+
+        <!-- Players Circle -->
+        <section class="players-section" aria-label="Players">
+            <ul id="players-circle" class="players-circle" role="list">
+            </ul>
+        </section>
+
+        <!-- Word Input Area -->
+        <section class="word-section" aria-labelledby="word-heading">
+            <h3 id="word-heading" class="visually-hidden">Current word</h3>
+
+            <div id="word-display" class="word-display" aria-live="polite" aria-atomic="true">
+            </div>
+
+            <label for="word-input" class="visually-hidden">Type the word shown above</label>
+
+            <input type="text" id="word-input" class="word-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="20" disabled>
+        </section>
+
+        <!-- Controls -->
+        <section class="game-controls">
+            <button id="leave-game-btn" class="game-button secondary" type="button">Leave Game</button>
+        </section>
+
+        </section>
+
+    </section>
     </main>
 
     <!-- Footer -->
