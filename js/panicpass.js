@@ -216,8 +216,6 @@ function selectGameMode(mode) {
         if (!document.querySelector('.ai-count-btn.selected')) {
             selectAICount(2);
         }
-    } else if (mode === 'multiplayer') {
-        alert('Multiplayer mode is not implemented yet. Please select Singleplayer mode.');
     } else {
         aiSelector.classList.remove('visible');
     }
@@ -757,6 +755,7 @@ async function startGame() {
     console.group('Info | Starting new game');
     
     if (selectedGameMode === 'multiplayer') {
+        alert('Multiplayer mode is not implemented yet. Please select Singleplayer mode.');
         console.log('Error | Multiplayer not implemented');
         statusMessage.textContent = 'Multiplayer mode coming soon!';
         console.groupEnd();
