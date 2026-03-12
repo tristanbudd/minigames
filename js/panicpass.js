@@ -1,44 +1,69 @@
 "use strict";
 
 /* DOM elements */
-const startGameBtn = document.querySelector('#start-game-btn');
-const leaveGameBtn = document.querySelector('#leave-game-btn');
-const playersCircle = document.querySelector('#players-circle');
-const wordDisplay = document.querySelector('#word-display');
-const wordInput = document.querySelector('#word-input');
-const timerElement = document.querySelector('#game-timer');
-const statusMessage = document.querySelector('#status-message');
-const roundNumber = document.querySelector('#round-number');
-const playersCount = document.querySelector('#players-count');
-const startScreen = document.querySelector('#start-screen');
-const gameScreen = document.querySelector('#game-screen');
+const startGameBtn       = document.querySelector('#start-game-btn');
+const leaveGameBtn       = document.querySelector('#leave-game-btn');
+const playersCircle      = document.querySelector('#players-circle');
+const wordDisplay        = document.querySelector('#word-display');
+const wordInput          = document.querySelector('#word-input');
+const timerElement       = document.querySelector('#game-timer');
+const statusMessage      = document.querySelector('#status-message');
+const roundNumber        = document.querySelector('#round-number');
+const playersCount       = document.querySelector('#players-count');
+const startScreen        = document.querySelector('#start-screen');
+const gameScreen         = document.querySelector('#game-screen');
 const singleplayerOption = document.querySelector('#singleplayer-option');
-const multiplayerOption = document.querySelector('#multiplayer-option');
-const aiSelector = document.querySelector('#ai-selector');
-const aiCountBtns = document.querySelectorAll('.ai-count-btn');
+const multiplayerOption  = document.querySelector('#multiplayer-option');
+const aiSelector         = document.querySelector('#ai-selector');
+const aiCountBtns        = document.querySelectorAll('.ai-count-btn');
 const difficultySelector = document.querySelector('#difficulty-selector');
-const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+const difficultyBtns     = document.querySelectorAll('.difficulty-btn');
+
+/* Multiplayer DOM elements */
+const multiplayerSetup = document.querySelector('#multiplayer-setup');
+const sessionCodeInput = document.querySelector('#session-code-input');
+const playerNameInput  = document.querySelector('#player-name-input');
+const createSessionBtn = document.querySelector('#create-session-btn');
+const joinSessionBtn   = document.querySelector('#join-session-btn');
+const lobbyScreen      = document.querySelector('#lobby-screen');
+const lobbyPlayersList = document.querySelector('#lobby-players-list');
+const lobbyCodeDisplay = document.querySelector('#lobby-code-display');
+const startMultiBtn    = document.querySelector('#start-multi-btn');
+const leaveLobbyBtn    = document.querySelector('#leave-lobby-btn');
+const multiStatusMsg   = document.querySelector('#multi-status-msg');
 
 /* Game state variables */
-let currentWord = '';
-let timerInterval = null;
-let timeRemaining = 10;
-let fallbackWords = [];
-let currentPlayerIndex = 0;
-let gameActive = false;
-let aiTypingTimeout = null;
-let currentRound = 1;
-let baseTimer = 10;
-let aiCompletedWord = false;
+let currentWord               = '';
+let timerInterval             = null;
+let timeRemaining             = 10;
+let fallbackWords             = [];
+let currentPlayerIndex        = 0;
+let gameActive                = false;
+let aiTypingTimeout           = null;
+let currentRound              = 1;
+let baseTimer                 = 10;
+let aiCompletedWord           = false;
 let playersCompletedThisRound = 0;
-let selectedGameMode = null;
-let selectedAICount = 2;
-let selectedDifficulty = null;
-let returnToStartTimeout = null;
-let gameFlowTimeout = null;
-let roundTransitionTimeout = null;
-let uiRefreshTimeout = null;
-let players = [];
+let selectedGameMode          = null;
+let selectedAICount           = 2;
+let selectedDifficulty        = null;
+let returnToStartTimeout      = null;
+let gameFlowTimeout           = null;
+let roundTransitionTimeout    = null;
+let uiRefreshTimeout          = null;
+let players                   = [];
+
+/* Multiplayer state variables */
+let ws                   = null;
+let myPlayerId           = null;
+let mySessionCode        = null;
+let isHost               = false;
+let multiCurrentWord     = '';
+let multiCurrentPlayerId = null;
+let lastSubmittedInput   = '';
+
+/* WebSocket server URL - change to your deployed host in production */
+const WS_URL = `ws://localhost:8080`;
 
 console.group('Info | Panic Pass Game Initialized');
 console.log('Info | DOM elements loaded');
@@ -178,8 +203,10 @@ function createPlayersArray(aiCount) {
  */
 function showStartScreen() {
     console.group('Info | Showing start screen');
-    startScreen.style.display = 'flex';
-    gameScreen.style.display = 'none';
+    startScreen.style.display      = 'flex';
+    gameScreen.style.display       = 'none';
+    lobbyScreen.style.display      = 'none';
+    multiplayerSetup.style.display = 'none';
     selectedGameMode = null;
 
     singleplayerOption.classList.remove('selected');
@@ -204,7 +231,8 @@ function showStartScreen() {
 function showGameScreen() {
     console.log('Info | Switching to game screen');
     startScreen.style.display = 'none';
-    gameScreen.style.display = 'block';
+    lobbyScreen.style.display = 'none';
+    gameScreen.style.display  = 'block';
 }
 
 /**
@@ -222,20 +250,16 @@ function selectGameMode(mode) {
     if (mode === 'singleplayer') {
         aiSelector.classList.add('visible');
         difficultySelector.classList.add('visible');
+        multiplayerSetup.style.display = 'none';
 
-        if (!document.querySelector('.ai-count-btn.selected')) {
-            selectAICount(2);
-        }
-
-        if (!document.querySelector('.difficulty-btn.selected')) {
-            selectDifficulty('medium');
-        }
+        if (!document.querySelector('.ai-count-btn.selected')) selectAICount(2);
+        if (!document.querySelector('.difficulty-btn.selected')) selectDifficulty('medium');
     } else {
         aiSelector.classList.remove('visible');
         difficultySelector.classList.remove('visible');
-
         selectedDifficulty = null;
         difficultyBtns.forEach(btn => btn.classList.remove('selected'));
+        multiplayerSetup.style.display = 'flex';
     }
 
     updateStartButton();
@@ -283,10 +307,9 @@ function updateStartButton() {
         selectedAICount > 0 &&
         !!selectedDifficulty;
 
-    const readyForMultiplayer = selectedGameMode === 'multiplayer';
-
-    const isReady = readyForSingleplayer || readyForMultiplayer;
+    const isReady = readyForSingleplayer;
     startGameBtn.classList.toggle('enabled', isReady);
+    startGameBtn.style.display = selectedGameMode === 'multiplayer' ? 'none' : '';
 }
 
 /**
@@ -375,7 +398,7 @@ function renderPlayers(list) {
     playersCircle.innerHTML = '';
     playersCircle.offsetHeight;
 
-    const size = playersCircle.offsetWidth;
+    const size   = playersCircle.offsetWidth;
     const radius = size / 2.5;
     const center = size / 2;
 
@@ -386,13 +409,19 @@ function renderPlayers(list) {
 
         const li = document.createElement('li');
         li.textContent = player.name;
-        li.style.left = x + 'px';
-        li.style.top = y + 'px';
+        li.style.left  = x + 'px';
+        li.style.top   = y + 'px';
 
-        if (index === currentPlayerIndex && !player.eliminated) {
-            li.classList.add('active');
-        }
+        const isActive = selectedGameMode === 'multiplayer'
+            ? player.id === multiCurrentPlayerId
+            : index === currentPlayerIndex && !player.eliminated;
+
+        if (isActive && !player.eliminated) li.classList.add('active');
         if (player.eliminated) li.classList.add('eliminated');
+
+        if (selectedGameMode === 'multiplayer' && player.id === myPlayerId) {
+            li.classList.add('self');
+        }
 
         playersCircle.appendChild(li);
     });
@@ -763,7 +792,7 @@ async function setNewWord() {
 }
 
 /**
- * Updates word display with input comparison and handles completion.
+ * Updates word display with input comparison and handles singleplayer completion.
  *
  * @param {string} input - The current input from the player to compare against the current word.
  */
@@ -772,10 +801,12 @@ function updateWordDisplay(input) {
 
     wordDisplay.innerHTML = '';
 
-    for (let i = 0; i < currentWord.length; i++) {
+    const word = selectedGameMode === 'multiplayer' ? multiCurrentWord : currentWord;
+
+    for (let i = 0; i < word.length; i++) {
         const span = document.createElement('span');
         const inputChar = input[i];
-        const correctChar = currentWord[i];
+        const correctChar = word[i];
 
         span.textContent = correctChar;
 
@@ -792,7 +823,7 @@ function updateWordDisplay(input) {
         wordDisplay.appendChild(span);
     }
 
-    if (input === currentWord && currentWord.length > 0 && gameActive && !aiCompletedWord) {
+    if (selectedGameMode !== 'multiplayer' && input === currentWord && currentWord.length > 0 && gameActive && !aiCompletedWord) {
         const currentPlayer = players[currentPlayerIndex];
         console.log('Success | Word completed by:', currentPlayer.name, 'isAI:', currentPlayer.isAI);
 
@@ -827,18 +858,10 @@ function updateWordDisplay(input) {
 }
 
 /**
- * Starts new game with selected mode and initializes state.
+ * Starts new singleplayer game with selected options and initializes state.
  */
 async function startGame() {
     console.group('Info | Starting new game');
-
-    if (selectedGameMode === 'multiplayer') {
-        alert('Multiplayer mode is not implemented yet. Please select Singleplayer mode.');
-        console.log('Error | Multiplayer not implemented');
-        statusMessage.textContent = 'Multiplayer mode coming soon!';
-        console.groupEnd();
-        return;
-    }
 
     if (selectedGameMode !== 'singleplayer') {
         console.log('Error | No valid game mode selected');
@@ -929,17 +952,606 @@ function resetGame() {
     returnToStartScreen();
 }
 
+/**
+ * Opens a WebSocket connection to the game server.
+ * Resolves once the connected handshake is received.
+ *
+ * @returns {Promise<void>} Resolves on successful connection.
+ */
+function connectWebSocket() {
+    return new Promise((resolve, reject) => {
+        console.log('Info | Connecting to WebSocket server:', WS_URL);
+
+        ws = new WebSocket(WS_URL);
+
+        ws.addEventListener('open', () => {
+            console.log('Info | WebSocket connection open');
+        });
+
+        ws.addEventListener('message', (event) => {
+            let msg;
+            try {
+                msg = JSON.parse(event.data);
+            } catch {
+                console.log('Error | Failed to parse server message');
+                return;
+            }
+
+            if (msg.type === 'connected') {
+                myPlayerId = msg.playerId;
+                console.log('Success | Assigned player ID:', myPlayerId);
+                resolve();
+            }
+
+            handleServerMessage(msg);
+        });
+
+        ws.addEventListener('error', (err) => {
+            console.log('Error | WebSocket error:', err);
+            reject(err);
+        });
+
+        ws.addEventListener('close', () => {
+            console.log('Info | WebSocket connection closed');
+            handleDisconnect();
+        });
+    });
+}
+
+/**
+ * Safely sends a JSON message to the server if the socket is open.
+ *
+ * @param {Object} payload - Data to serialise and send.
+ */
+function wsSend(payload) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+    } else {
+        console.log('Warning | Cannot send - WebSocket not open');
+    }
+}
+
+/**
+ * Handles unexpected WebSocket disconnection mid-game or in lobby.
+ */
+function handleDisconnect() {
+    if (gameScreen.style.display !== 'none') {
+        statusMessage.textContent = 'Disconnected from server. Returning to menu...';
+        setTimeout(() => {
+            resetMultiplayerState();
+            returnToStartScreen();
+        }, 3000);
+    } else if (lobbyScreen.style.display !== 'none') {
+        setMultiStatus('Disconnected from server.');
+        setTimeout(() => {
+            resetMultiplayerState();
+            showStartScreen();
+        }, 2000);
+    }
+}
+
+/**
+ * Clears all multiplayer state variables and closes the socket if open.
+ */
+function resetMultiplayerState() {
+    console.log('Info | Resetting multiplayer state');
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+    }
+
+    ws                   = null;
+    myPlayerId           = null;
+    mySessionCode        = null;
+    isHost               = false;
+    multiCurrentWord     = '';
+    multiCurrentPlayerId = null;
+    lastSubmittedInput   = '';
+    players              = [];
+}
+
+/**
+ * Central dispatch for all messages received from the server.
+ *
+ * @param {Object} msg - Parsed message object with a type field.
+ */
+function handleServerMessage(msg) {
+    switch (msg.type) {
+        case 'connected':
+            break;
+
+        case 'session_created':
+            onSessionCreated(msg);
+            break;
+
+        case 'session_joined':
+            onSessionJoined(msg);
+            break;
+
+        case 'lobby_state':
+            onLobbyState(msg);
+            break;
+
+        case 'game_started':
+            onGameStarted(msg);
+            break;
+
+        case 'turn_start':
+            onTurnStart(msg);
+            break;
+
+        case 'word_complete':
+            onWordComplete(msg);
+            break;
+
+        case 'round_complete':
+            onRoundComplete(msg);
+            break;
+
+        case 'player_eliminated':
+            onPlayerEliminated(msg);
+            break;
+
+        case 'game_over':
+            onGameOver(msg);
+            break;
+
+        case 'typing_update':
+            onTypingUpdate(msg);
+            break;
+
+        case 'timer_tick':
+            onTimerTick(msg);
+            break;
+
+        case 'player_left':
+            onPlayerLeft(msg);
+            break;
+
+        case 'next_round':
+            onNextRound(msg);
+            break;
+
+        case 'error':
+            console.log('Error | Server error:', msg.message);
+            setMultiStatus(`Error: ${msg.message}`);
+            break;
+
+        default:
+            console.log('Warning | Unknown message type from server:', msg.type);
+    }
+}
+
+/**
+ * Called after the server confirms session creation.
+ * Transitions into the lobby screen as host.
+ *
+ * @param {Object} msg - Server message with code and player list.
+ */
+function onSessionCreated(msg) {
+    console.log('Info | Session created:', msg.code);
+    mySessionCode = msg.code;
+    isHost        = true;
+    players       = msg.players;
+
+    showLobbyScreen(msg.code, msg.players);
+    startMultiBtn.style.display = 'block';
+    setMultiStatus('Waiting for players to join...');
+}
+
+/**
+ * Called after the server confirms the player has joined a session.
+ * Transitions into the lobby screen as a non-host player.
+ *
+ * @param {Object} msg - Server message with code, player list, and hostId.
+ */
+function onSessionJoined(msg) {
+    console.log('Info | Joined session:', msg.code);
+    mySessionCode = msg.code;
+    isHost        = msg.hostId === myPlayerId;
+    players       = msg.players;
+
+    showLobbyScreen(msg.code, msg.players);
+    startMultiBtn.style.display = isHost ? 'block' : 'none';
+    setMultiStatus(isHost ? 'Waiting for players...' : 'Waiting for host to start...');
+}
+
+/**
+ * Called when the server broadcasts a lobby state update.
+ * Refreshes the player list for all lobby participants.
+ *
+ * @param {Object} msg - Server message with updated player list.
+ */
+function onLobbyState(msg) {
+    console.log('Debug | Lobby state update:', msg.players.map(p => p.name));
+    players = msg.players;
+    renderLobbyPlayers(msg.players);
+
+    isHost = msg.hostId === myPlayerId;
+    startMultiBtn.style.display = isHost ? 'block' : 'none';
+
+    if (isHost) {
+        setMultiStatus(msg.players.length < 2
+            ? 'Need at least 2 players to start.'
+            : 'Ready to start!');
+    } else {
+        setMultiStatus('Waiting for host to start...');
+    }
+}
+
+/**
+ * Shows the lobby screen with the session code and player list.
+ *
+ * @param {string} code - The 6-digit session code.
+ * @param {Array} playerList - Array of player objects.
+ */
+function showLobbyScreen(code, playerList) {
+    startScreen.style.display = 'none';
+    gameScreen.style.display  = 'none';
+    lobbyScreen.style.display = 'flex';
+
+    if (lobbyCodeDisplay) {
+        lobbyCodeDisplay.textContent = code;
+    }
+
+    renderLobbyPlayers(playerList);
+}
+
+/**
+ * Renders the lobby player list.
+ *
+ * @param {Array} playerList - Array of player objects.
+ */
+function renderLobbyPlayers(playerList) {
+    if (!lobbyPlayersList) return;
+    lobbyPlayersList.innerHTML = '';
+
+    playerList.forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'lobby-player-item';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = p.name;
+        if (p.id === myPlayerId) nameSpan.classList.add('lobby-self');
+
+        li.appendChild(nameSpan);
+
+        if (p.isHost) {
+            const badge = document.createElement('span');
+            badge.className   = 'lobby-host-badge';
+            badge.textContent = 'Host';
+            li.appendChild(badge);
+        }
+
+        lobbyPlayersList.appendChild(li);
+    });
+}
+
+/**
+ * Sets the multiplayer status message text.
+ *
+ * @param {string} text - Status text to display.
+ */
+function setMultiStatus(text) {
+    if (!multiStatusMsg) return;
+    multiStatusMsg.textContent = text;
+    multiStatusMsg.style.display = text ? 'block' : 'none';
+}
+
+/**
+ * Called when the server signals the game has started.
+ * Transitions all clients from lobby to game screen.
+ *
+ * @param {Object} msg - Server message with player list and round info.
+ */
+function onGameStarted(msg) {
+    console.log('Info | Multiplayer game started');
+    players = msg.players;
+
+    showGameScreen();
+
+    if (roundNumber) roundNumber.textContent = msg.round;
+    if (playersCount) playersCount.textContent = players.filter(p => !p.eliminated).length;
+
+    statusMessage.textContent = 'Game starting...';
+    wordInput.disabled        = true;
+    wordInput.value           = '';
+    wordDisplay.innerHTML     = '';
+}
+
+/**
+ * Called when it is a new player's turn to type.
+ * Enables input only for the active player; others watch.
+ *
+ * @param {Object} msg - Server message with currentPlayerId, word, round, and timer.
+ */
+function onTurnStart(msg) {
+    console.log('Info | Turn start - current player:', msg.currentPlayerId, 'word:', msg.word);
+
+    multiCurrentWord     = msg.word;
+    multiCurrentPlayerId = msg.currentPlayerId;
+    players              = msg.players;
+    lastSubmittedInput   = '';
+
+    if (roundNumber) roundNumber.textContent = msg.round;
+    if (playersCount) playersCount.textContent = msg.playersRemaining;
+
+    timeRemaining = msg.timerSeconds;
+    updateTimer();
+    renderPlayers(players);
+    updateWordDisplay('');
+
+    const isMyTurn = msg.currentPlayerId === myPlayerId;
+
+    if (isMyTurn) {
+        wordInput.disabled      = false;
+        wordInput.style.opacity = '1';
+        wordInput.placeholder   = 'Type here...';
+        wordInput.value         = '';
+        wordInput.focus();
+
+        const nextPlayer = players.find(p => p.id === msg.nextPlayerId);
+        statusMessage.textContent = nextPlayer
+            ? `Round ${msg.round} - Your turn! (${msg.timerSeconds}s) | Next: ${nextPlayer.name}`
+            : `Round ${msg.round} - Your turn! (${msg.timerSeconds}s)`;
+    } else {
+        const currentPlayerData = players.find(p => p.id === msg.currentPlayerId);
+        wordInput.disabled      = true;
+        wordInput.style.opacity = '0.5';
+        wordInput.placeholder   = currentPlayerData
+            ? `${currentPlayerData.name} is typing...`
+            : 'Waiting...';
+        wordInput.value = '';
+
+        statusMessage.textContent = currentPlayerData
+            ? `Round ${msg.round} - ${currentPlayerData.name} is typing... (${msg.timerSeconds}s)`
+            : `Round ${msg.round} - Waiting...`;
+    }
+}
+
+/**
+ * Called when a player completes the word.
+ * Updates status; the server will follow up with a turn_start.
+ *
+ * @param {Object} msg - Server message with completedBy name.
+ */
+function onWordComplete(msg) {
+    console.log('Info | Word complete by:', msg.completedBy);
+    players = msg.players;
+    renderPlayers(players);
+    statusMessage.textContent = `${msg.completedBy} typed correctly! Passing bomb...`;
+    wordInput.disabled = true;
+    wordInput.value    = '';
+}
+
+/**
+ * Called when all players have completed the word in a round.
+ * Updates the round counter and status message.
+ *
+ * @param {Object} msg - Server message with new round number.
+ */
+function onRoundComplete(msg) {
+    console.log('Info | Round complete. New round:', msg.round);
+    if (roundNumber) roundNumber.textContent = msg.round;
+    statusMessage.textContent = `Round complete! Round ${msg.round} starting...`;
+}
+
+/**
+ * Called when any player is eliminated by the timer.
+ * Marks the player eliminated in the local list and re-renders.
+ *
+ * @param {Object} msg - Server message with eliminatedId and player list.
+ */
+function onPlayerEliminated(msg) {
+    console.log('Info | Player eliminated:', msg.eliminatedName);
+    players = msg.players;
+
+    renderPlayers(players);
+    if (playersCount) playersCount.textContent = msg.playersRemaining;
+
+    if (msg.eliminatedId === myPlayerId) {
+        wordInput.disabled = true;
+        wordInput.value    = '';
+        statusMessage.textContent = 'Boom! You were eliminated!';
+    } else {
+        statusMessage.textContent = msg.reason === 'disconnected'
+            ? `${msg.eliminatedName} disconnected and was eliminated.`
+            : `Boom! ${msg.eliminatedName} was eliminated.`;
+    }
+}
+
+/**
+ * Called at the start of a new server-side round after an elimination.
+ *
+ * @param {Object} msg - Server message with round, timer, and playersRemaining.
+ */
+function onNextRound(msg) {
+    console.log('Info | Next round:', msg.round);
+    if (roundNumber) roundNumber.textContent = msg.round;
+    if (playersCount) playersCount.textContent = msg.playersRemaining;
+    statusMessage.textContent = `${msg.playersRemaining} players remaining. Round ${msg.round} starting...`;
+}
+
+/**
+ * Called when the game ends with a winner.
+ * Shows result and returns to start screen after a delay.
+ *
+ * @param {Object} msg - Server message with winnerId and winnerName.
+ */
+function onGameOver(msg) {
+    console.log('Info | Game over - winner:', msg.winnerName);
+
+    wordInput.disabled = true;
+    wordInput.value    = '';
+
+    let text;
+    if (!msg.winnerId) {
+        text = 'Game over!';
+    } else if (msg.winnerId === myPlayerId) {
+        text = 'You won the game!';
+    } else {
+        text = `${msg.winnerName} wins the game!`;
+    }
+
+    if (msg.reason) text += ` (${msg.reason})`;
+    statusMessage.textContent = text;
+
+    setTimeout(() => {
+        resetMultiplayerState();
+        returnToStartScreen();
+    }, 5000);
+}
+
+/**
+ * Called when a non-active player's typing update is received.
+ * Shows their partial progress on the word display for spectators.
+ *
+ * @param {Object} msg - Server message with playerId and partial input.
+ */
+function onTypingUpdate(msg) {
+    if (msg.playerId !== multiCurrentPlayerId) return;
+    if (msg.playerId === myPlayerId) return;
+
+    updateWordDisplay(msg.input || '');
+}
+
+/**
+ * Called every 100ms with the authoritative server time remaining.
+ * Updates the local timer display without running a local interval.
+ *
+ * @param {Object} msg - Server message with timeRemaining value.
+ */
+function onTimerTick(msg) {
+    timeRemaining = msg.timeRemaining;
+    updateTimer();
+}
+
+/**
+ * Called when a player leaves voluntarily during a game.
+ * Updates the player list and migrates host role if needed.
+ *
+ * @param {Object} msg - Server message with playerId, playerName, newHostId.
+ */
+function onPlayerLeft(msg) {
+    console.log('Info | Player left:', msg.playerName);
+    players = msg.players;
+    renderPlayers(players);
+
+    if (msg.newHostId === myPlayerId && !isHost) {
+        isHost = true;
+        console.log('Info | Host role migrated to this client');
+    }
+
+    statusMessage.textContent = `${msg.playerName} left the game.`;
+}
+
+/**
+ * Handles Create Session button click.
+ * Connects to the server and sends a create_session message.
+ */
+async function handleCreateSession() {
+    const name = (playerNameInput?.value || '').trim() || 'Player 1';
+    console.log('Info | Creating session as:', name);
+
+    try {
+        setMultiStatus('Connecting...');
+        await connectWebSocket();
+        wsSend({ type: 'create_session', playerName: name });
+    } catch {
+        setMultiStatus('Could not connect to multiplayer server.');
+        console.log('Error | WebSocket connection failed');
+    }
+}
+
+/**
+ * Handles Join Session button click.
+ * Connects to the server and sends a join_session message.
+ */
+async function handleJoinSession() {
+    const name = (playerNameInput?.value || '').trim() || 'Player';
+    const code = (sessionCodeInput?.value || '').trim();
+
+    if (!code || code.length !== 6) {
+        setMultiStatus('Please enter a valid 6-digit session code.');
+        return;
+    }
+
+    console.log('Info | Joining session:', code, 'as:', name);
+
+    try {
+        setMultiStatus('Connecting...');
+        await connectWebSocket();
+        wsSend({ type: 'join_session', code, playerName: name });
+    } catch {
+        setMultiStatus('Could not connect to server. Is server.js running?');
+        console.log('Error | WebSocket connection failed');
+    }
+}
+
+/**
+ * Handles Start Game button click from the lobby host.
+ */
+function handleStartMultiplayer() {
+    if (!isHost) return;
+    console.log('Info | Host starting multiplayer game');
+    wsSend({ type: 'start_game' });
+}
+
+/**
+ * Handles Leave Lobby button click.
+ * Sends leave message and resets to start screen.
+ */
+function handleLeaveLobby() {
+    console.log('Info | Leaving lobby');
+    wsSend({ type: 'leave_session' });
+    resetMultiplayerState();
+    showStartScreen();
+}
+
+/**
+ * Handles Leave Game button click during a multiplayer game.
+ * Sends leave message and returns to start screen.
+ */
+function handleLeaveMultiplayerGame() {
+    console.log('Info | Leaving multiplayer game');
+    wsSend({ type: 'leave_session' });
+    resetMultiplayerState();
+    returnToStartScreen();
+}
+
 if (wordInput) {
     wordInput.addEventListener('input', function() {
-        if (!gameActive || players.length === 0 || players[currentPlayerIndex].isAI || wordInput.disabled) {
-            wordInput.value = '';
+        if (selectedGameMode !== 'multiplayer') {
+            if (!gameActive || players.length === 0 || players[currentPlayerIndex].isAI || wordInput.disabled) {
+                wordInput.value = '';
+                return;
+            }
+            const value = wordInput.value;
+            if (value.length > currentWord.length) {
+                wordInput.value = value.slice(0, currentWord.length);
+            }
+            updateWordDisplay(wordInput.value);
             return;
         }
+
+        if (wordInput.disabled) return;
+
         const value = wordInput.value;
-        if (value.length > currentWord.length) {
-            wordInput.value = value.slice(0, currentWord.length);
+
+        if (value.length > multiCurrentWord.length) {
+            wordInput.value = value.slice(0, multiCurrentWord.length);
         }
+
         updateWordDisplay(wordInput.value);
+
+        wsSend({ type: 'typing_update', input: wordInput.value });
+
+        if (wordInput.value === multiCurrentWord && wordInput.value !== lastSubmittedInput) {
+            lastSubmittedInput = wordInput.value;
+            console.log('Info | Submitting completed word:', wordInput.value);
+            wsSend({ type: 'submit_word', word: wordInput.value });
+            wordInput.disabled = true;
+        }
     });
 }
 
@@ -982,7 +1594,24 @@ if (startGameBtn) {
 }
 
 if (leaveGameBtn) {
-    leaveGameBtn.addEventListener('click', resetGame);
+    leaveGameBtn.addEventListener('click', () => {
+        if (selectedGameMode === 'multiplayer') {
+            handleLeaveMultiplayerGame();
+        } else {
+            resetGame();
+        }
+    });
+}
+
+if (createSessionBtn) createSessionBtn.addEventListener('click', handleCreateSession);
+if (joinSessionBtn)   joinSessionBtn.addEventListener('click', handleJoinSession);
+if (startMultiBtn)    startMultiBtn.addEventListener('click', handleStartMultiplayer);
+if (leaveLobbyBtn)    leaveLobbyBtn.addEventListener('click', handleLeaveLobby);
+
+if (sessionCodeInput) {
+    sessionCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleJoinSession();
+    });
 }
 
 showStartScreen();
@@ -994,7 +1623,7 @@ let resizeTimeout;
 window.addEventListener('resize', function() {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(function() {
-        if (gameActive || players.some(p => p.eliminated)) {
+        if (gameActive || selectedGameMode === 'multiplayer' || players.some(p => p.eliminated)) {
             console.log('Debug | Window resized, re-rendering players');
             renderPlayers(players);
         }
