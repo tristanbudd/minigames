@@ -626,10 +626,24 @@ function animateAITyping() {
     let currentInput = '';
     let charIndex = 0;
     const wordLength = currentWord.length;
-    const difficultyMultiplier = getAIDifficultyMultiplier(currentRound);
-    const baseMistakeProbability = Math.min(0.25, 0.05 + (wordLength - 3) * 0.03);
-    const adjustedMistakeProbability = Math.min(0.4, baseMistakeProbability * difficultyMultiplier);
 
+    // Use selectedDifficulty to set AI mistake probability
+    let difficultyMultiplier = 1.0;
+    let adjustedMistakeProbability = 0.1;
+    if (selectedDifficulty === 'easy') {
+        difficultyMultiplier = 1.5;
+        adjustedMistakeProbability = 0.25;
+    } else if (selectedDifficulty === 'medium') {
+        difficultyMultiplier = 1.0;
+        adjustedMistakeProbability = 0.15;
+    } else if (selectedDifficulty === 'hard') {
+        difficultyMultiplier = 0.7;
+        adjustedMistakeProbability = 0.05;
+    }
+
+    /**
+     * Types the next character for the AI, handling mistakes and corrections.
+     */
     function typeNextChar() {
         if (!gameActive || charIndex >= wordLength || players[currentPlayerIndex].eliminated) {
             if (gameActive && players[currentPlayerIndex].isAI && !players[currentPlayerIndex].eliminated) {
