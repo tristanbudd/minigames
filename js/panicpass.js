@@ -62,8 +62,15 @@ let multiCurrentWord     = '';
 let multiCurrentPlayerId = null;
 let lastSubmittedInput   = '';
 
-/* WebSocket server URL - change to your deployed host in production */
-const WS_URL = `ws://localhost:8080`;
+/* WebSocket server URL - auto-select based on environment */
+const WS_URL = (() => {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'ws://localhost:8080';
+    } else {
+        return 'wss://api.tristanbudd.com/minigames/panicpass';
+    }
+})();
 
 console.group('Info | Panic Pass Game Initialized');
 console.log('Info | DOM elements loaded');

@@ -1189,7 +1189,6 @@ header {
 
   .game-button {
     width: 100%;
-    max-width: 280px;
     padding: 0.875rem 1.5rem;
   }
 
@@ -1243,8 +1242,7 @@ header {
     width: 100%;
   }
 
-  .lobby-controls .game-button {
-    width: 100%;
+  .lobby-controls {
     max-width: 280px;
   }
 }
