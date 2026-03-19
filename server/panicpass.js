@@ -377,42 +377,20 @@ async function startTurn(session) {
  */
 async function handleWordComplete(session, player) {
     clearSessionTimer(session);
-    session.playersCompletedThisRound++;
 
-    const active = getActivePlayers(session);
-    const allDone = session.playersCompletedThisRound >= active.length;
+    broadcast(session, {
+        type: 'word_complete',
+        completedBy: player.name,
+        players: getPlayerList(session),
+    });
 
-    if (allDone) {
-        session.currentRound++;
-        session.playersCompletedThisRound = 0;
-
-        broadcast(session, {
-            type: 'round_complete',
-            completedBy: player.name,
-            round: session.currentRound,
-            timerSeconds: getTimerForRound(session.currentRound),
-        });
-
-        setTimeout(() => {
-            if (session.phase === 'playing') {
-                advanceToNextPlayer(session);
-                startTurn(session);
-            }
-        }, 2000);
-    } else {
-        broadcast(session, {
-            type: 'word_complete',
-            completedBy: player.name,
-            players: getPlayerList(session),
-        });
-
-        setTimeout(() => {
-            if (session.phase === 'playing') {
-                advanceToNextPlayer(session);
-                startTurn(session);
-            }
-        }, 1500);
-    }
+    setTimeout(() => {
+        if (session.phase === 'playing') {
+            session.currentRound++;
+            advanceToNextPlayer(session);
+            startTurn(session);
+        }
+    }, 1500);
 }
 
 /**
