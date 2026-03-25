@@ -28,6 +28,7 @@ const joinSessionBtn   = document.querySelector('#join-session-btn');
 const lobbyScreen      = document.querySelector('#lobby-screen');
 const lobbyPlayersList = document.querySelector('#lobby-players-list');
 const lobbyCodeDisplay = document.querySelector('#lobby-code-display');
+const lobbyStatusMsg  = document.querySelector('#lobby-status-msg');
 const startMultiBtn    = document.querySelector('#start-multi-btn');
 const leaveLobbyBtn    = document.querySelector('#leave-lobby-btn');
 const multiStatusMsg   = document.querySelector('#multi-status-msg');
@@ -1240,9 +1241,15 @@ function renderLobbyPlayers(playerList) {
  * @param {string} text - Status text to display.
  */
 function setMultiStatus(text) {
-    if (!multiStatusMsg) return;
-    multiStatusMsg.textContent = text;
-    multiStatusMsg.style.display = text ? 'block' : 'none';
+    if (multiStatusMsg) {
+        multiStatusMsg.textContent = text;
+        multiStatusMsg.style.display = text ? 'block' : 'none';
+    }
+
+    if (lobbyStatusMsg) {
+        lobbyStatusMsg.textContent = text;
+        lobbyStatusMsg.style.display = text ? 'block' : 'none';
+    }
 }
 
 /**
@@ -1500,6 +1507,11 @@ async function handleJoinSession() {
  */
 function handleStartMultiplayer() {
     if (!isHost) return;
+    if (players.length < 2) {
+        setMultiStatus('Need at least 2 players to start.');
+        console.log('Error | Not enough players to start multiplayer game');
+        return;
+    }
     console.log('Info | Host starting multiplayer game');
     wsSend({ type: 'start_game' });
 }
