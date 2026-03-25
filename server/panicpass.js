@@ -349,15 +349,12 @@ async function startTurn(session) {
     }
 
     const active = getActivePlayers(session);
-    const currentIdx = active.findIndex(p => p.id === currentPlayer.id);
-    const nextPlayer = active[(currentIdx + 1) % active.length];
 
     console.log('Info | Round', session.currentRound, '-', currentPlayer.name + "'s turn, word:", session.currentWord);
 
     broadcast(session, {
         type: 'turn_start',
         currentPlayerId: currentPlayer.id,
-        nextPlayerId: nextPlayer ? nextPlayer.id : null,
         word: session.currentWord,
         round: session.currentRound,
         timerSeconds: getTimerForRound(session.currentRound),

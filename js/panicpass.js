@@ -365,20 +365,11 @@ function getAIDifficultyMultiplier(round) {
  * Updates round display with number and timer.
  */
 function updateRoundDisplay() {
-    const timerForRound = getTimerForRound(currentRound);
-    statusMessage.textContent = `Round ${currentRound} - Timer: ${timerForRound}s`;
-    statusMessage.classList.add('round-info');
-
     if (roundNumber) {
         roundNumber.textContent = currentRound;
     }
 
     console.log('Info | Round display updated:', currentRound);
-
-    clearTimeout(uiRefreshTimeout);
-    uiRefreshTimeout = setTimeout(function() {
-        statusMessage.classList.remove('round-info');
-    }, 2000);
 }
 
 /**
@@ -538,7 +529,7 @@ function explode() {
         clearTimeout(gameFlowTimeout);
         gameFlowTimeout = setTimeout(async function() {
             gameActive = true;
-            statusMessage.textContent = `${remainingPlayers.length} players remaining. Next round starting...`;
+            statusMessage.textContent = '';
 
             let nextPlayerIndex = currentPlayerIndex;
             nextPlayerIndex = (nextPlayerIndex + 1) % players.length;
@@ -559,7 +550,7 @@ function explode() {
 
                     const currentPlayer = players[currentPlayerIndex];
                     if (currentPlayer.isAI) {
-                        statusMessage.textContent = `Round ${currentRound} - ${currentPlayer.name} is typing... (${getTimerForRound(currentRound)}s timer)`;
+                        statusMessage.textContent = '';
                         wordInput.disabled = true;
                         wordInput.value = '';
                         wordInput.style.opacity = '0.5';
@@ -567,7 +558,7 @@ function explode() {
                         startTimer();
                         startAITurn();
                     } else {
-                        statusMessage.textContent = `Round ${currentRound} - Your turn! Type quickly! (${getTimerForRound(currentRound)}s timer)`;
+                        statusMessage.textContent = '';
                         wordInput.disabled = false;
                         wordInput.style.opacity = '1';
                         wordInput.placeholder = 'Type here...';
@@ -599,22 +590,15 @@ function passBomb() {
     console.log('Info | Bomb passed to:', currentPlayer.name, 'isAI:', currentPlayer.isAI);
     renderPlayers(players);
 
-    let nextUpIndex = currentPlayerIndex;
-    nextUpIndex = (nextUpIndex + 1) % players.length;
-    while (players[nextUpIndex].eliminated) {
-        nextUpIndex = (nextUpIndex + 1) % players.length;
-    }
-    const nextUpPlayer = players[nextUpIndex];
-
     if (currentPlayer.isAI) {
-        statusMessage.textContent = `Round ${currentRound} - ${currentPlayer.name} is typing... (${getTimerForRound(currentRound)}s timer) | Next: ${nextUpPlayer.name}`;
+        statusMessage.textContent = '';
         wordInput.disabled = true;
         wordInput.value = '';
         wordInput.style.opacity = '0.5';
         wordInput.placeholder = `${currentPlayer.name} is typing...`;
         startAITurn();
     } else {
-        statusMessage.textContent = `Round ${currentRound} - Your turn! Type quickly! (${getTimerForRound(currentRound)}s timer) | Next: ${nextUpPlayer.name}`;
+        statusMessage.textContent = '';
         wordInput.disabled = false;
         wordInput.style.opacity = '1';
         wordInput.placeholder = 'Type here...';
@@ -915,8 +899,7 @@ async function startGame() {
     currentWord = await getRandomWord();
     updateWordDisplay('');
 
-    const nextUpPlayer = players[1];
-    statusMessage.textContent = `Round ${currentRound} - Your turn! Type quickly! (${getTimerForRound(currentRound)}s timer) | Next: ${nextUpPlayer.name}`;
+    statusMessage.textContent = '';
 
     wordInput.focus();
     startTimer();
@@ -1303,11 +1286,7 @@ function onTurnStart(msg) {
         wordInput.placeholder   = 'Type here...';
         wordInput.value         = '';
         wordInput.focus();
-
-        const nextPlayer = players.find(p => p.id === msg.nextPlayerId);
-        statusMessage.textContent = nextPlayer
-            ? `Round ${msg.round} - Your turn! (${msg.timerSeconds}s) | Next: ${nextPlayer.name}`
-            : `Round ${msg.round} - Your turn! (${msg.timerSeconds}s)`;
+        statusMessage.textContent = '';
     } else {
         const currentPlayerData = players.find(p => p.id === msg.currentPlayerId);
         wordInput.disabled      = true;
@@ -1316,10 +1295,7 @@ function onTurnStart(msg) {
             ? `${currentPlayerData.name} is typing...`
             : 'Waiting...';
         wordInput.value = '';
-
-        statusMessage.textContent = currentPlayerData
-            ? `Round ${msg.round} - ${currentPlayerData.name} is typing... (${msg.timerSeconds}s)`
-            : `Round ${msg.round} - Waiting...`;
+        statusMessage.textContent = '';
     }
 }
 
