@@ -336,6 +336,66 @@ header {
   line-height: 1.4;
 }
 
+/* Shared Start Button State */
+.start-button {
+  opacity: 0.5;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.start-button.enabled {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Shared Game Mode Selector */
+.game-mode-selector {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border: 0.2rem solid #000000;
+  border-radius: 0.5rem;
+  background-color: #fefefe;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 170px;
+}
+
+.mode-option:hover {
+  transform: translateY(-0.25rem);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  filter: drop-shadow(0 0 0.5rem #000000);
+}
+
+.mode-option.selected {
+  background-color: #000000;
+  color: #fefefe;
+}
+
+.mode-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+
+.mode-description {
+  font-size: 0.8rem;
+  color: #666666;
+  margin-bottom: 0.75rem;
+}
+
+.mode-option.selected .mode-description {
+  color: #cccccc;
+}
+
 /* Footer */
 .footer {
   margin-top: 2rem;
@@ -489,5 +549,17 @@ header {
 
   .game-description {
     font-size: 0.8rem;
+  }
+
+  .game-mode-selector {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .mode-option {
+    min-width: auto;
+    width: 100%;
+    max-width: 260px;
+    padding: 1.25rem;
   }
 }

@@ -33,10 +33,10 @@ let timeRemaining    = 12;
 let timerInterval    = null;
 let gameActive       = false;
 let roundTimeout     = null;
-let selectedMode     = 'singleplayer';
+let selectedMode     = null;
 let aiMoveInterval   = null;
-let selectedAICount  = 2;
-let selectedDifficulty = 'medium';
+let selectedAICount  = null;
+let selectedDifficulty = null;
 let currentPlayerIndex = 0;
 let players = [];
 let roundsPerStage = 3;
@@ -53,15 +53,18 @@ console.groupEnd();
 function showStartScreen() {
     startScreen.style.display = 'flex';
     gameScreen.style.display  = 'none';
-    selectedMode = 'singleplayer';
-    if (singleplayerOption) singleplayerOption.classList.add('selected');
+    selectedMode = null;
+    if (singleplayerOption) singleplayerOption.classList.remove('selected');
     if (multiplayerOption) multiplayerOption.classList.remove('selected');
-    if (aiSelector) aiSelector.classList.add('visible');
-    if (difficultySelector) difficultySelector.classList.add('visible');
-    if (aiCountBtns.length) selectAICount(selectedAICount);
-    if (difficultyBtns.length) selectDifficulty(selectedDifficulty);
+    if (aiSelector) aiSelector.classList.remove('visible');
+    if (difficultySelector) difficultySelector.classList.remove('visible');
+    aiCountBtns.forEach(btn => btn.classList.remove('selected'));
+    difficultyBtns.forEach(btn => btn.classList.remove('selected'));
+    selectedAICount = null;
+    selectedDifficulty = null;
     if (startStatusMessage) startStatusMessage.textContent = '';
     if (gameStatusMessage) gameStatusMessage.textContent = '';
+    updateStartButton();
 }
 
 /**
@@ -682,6 +685,7 @@ function selectAICount(count) {
     aiCountBtns.forEach(btn => {
         btn.classList.toggle('selected', parseInt(btn.dataset.count) === count);
     });
+    updateStartButton();
 }
 
 function selectDifficulty(level) {
@@ -690,28 +694,44 @@ function selectDifficulty(level) {
         const btnDifficulty = btn.dataset.difficulty || btn.value;
         btn.classList.toggle('selected', btnDifficulty === level);
     });
+    updateStartButton();
 }
 
-if (singleplayerOption) {
-    singleplayerOption.addEventListener('click', () => {
-        selectedMode = 'singleplayer';
-        singleplayerOption.classList.add('selected');
-        multiplayerOption.classList.remove('selected');
+function updateStartButton() {
+    const readyForSingleplayer =
+        selectedMode === 'singleplayer' &&
+        selectedAICount > 0 &&
+        !!selectedDifficulty;
+
+    startGameBtn.classList.toggle('enabled', readyForSingleplayer);
+}
+
+function selectGameMode(mode) {
+    selectedMode = mode;
+    singleplayerOption.classList.toggle('selected', mode === 'singleplayer');
+    multiplayerOption.classList.toggle('selected', mode === 'multiplayer');
+
+    if (mode === 'singleplayer') {
         aiSelector.classList.add('visible');
         difficultySelector.classList.add('visible');
+        if (!document.querySelector('.ai-count-btn.selected')) selectAICount(2);
+        if (!document.querySelector('.difficulty-btn.selected')) selectDifficulty('medium');
         if (startStatusMessage) startStatusMessage.textContent = '';
-    });
-}
-
-if (multiplayerOption) {
-    multiplayerOption.addEventListener('click', () => {
-        selectedMode = 'multiplayer';
-        multiplayerOption.classList.add('selected');
-        singleplayerOption.classList.remove('selected');
+    } else {
         aiSelector.classList.remove('visible');
         difficultySelector.classList.remove('visible');
         if (startStatusMessage) startStatusMessage.textContent = 'Multiplayer coming soon.';
-    });
+    }
+
+    updateStartButton();
+}
+
+if (singleplayerOption) {
+    singleplayerOption.addEventListener('click', () => selectGameMode('singleplayer'));
+}
+
+if (multiplayerOption) {
+    multiplayerOption.addEventListener('click', () => selectGameMode('multiplayer'));
 }
 
 if (startGameBtn) {
@@ -720,6 +740,7 @@ if (startGameBtn) {
             if (startStatusMessage) startStatusMessage.textContent = 'Multiplayer coming soon.';
             return;
         }
+        if (!startGameBtn.classList.contains('enabled')) return;
         startGame();
     });
 }
