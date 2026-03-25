@@ -1,6 +1,6 @@
 /* Main Page Setup */
 body {
-  background-color: #ffffff;
+  background-color: #fefefe;
   font-family: "Quantico", sans-serif;
 }
 
@@ -9,7 +9,7 @@ header {
   border-bottom: #000000 0.2rem solid;
   position: relative;
   z-index: 10000;
-  background-color: #ffffff;
+  background-color: #fefefe;
 }
 
 /* Animations / Keyframes */
@@ -177,7 +177,7 @@ header {
   right: 0;
   width: 100%;
   height: 100vh;
-  background-color: #ffffff;
+  background-color: #fefefe;
   z-index: 9999;
   padding: 2rem;
   box-sizing: border-box;
@@ -241,7 +241,7 @@ header {
   left: 0;
   width: 100%;
   height: 100vh;
-  background-color: #ffffff;
+  background-color: #fefefe;
   z-index: 9999;
   padding: 2rem;
   box-sizing: border-box;
@@ -304,7 +304,7 @@ header {
   border-radius: 0.5rem;
   text-decoration: none;
   color: #000000;
-  background-color: #ffffff;
+  background-color: #fefefe;
   transition: all 0.3s ease;
   cursor: pointer;
 }
@@ -458,7 +458,7 @@ header {
   padding: 1.25rem 1.5rem;
   border: 0.2rem solid #000000;
   border-radius: 0.5rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
   cursor: pointer;
   transition: all 0.3s ease;
   min-width: 170px;
@@ -472,7 +472,7 @@ header {
 
 .mode-option.selected {
   background-color: #000000;
-  color: #ffffff;
+  color: #fefefe;
 }
 
 .mode-title {
@@ -524,7 +524,7 @@ header {
   height: 2.5rem;
   border: 0.2rem solid #000000;
   border-radius: 0.5rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
   color: #000000;
   font-size: 0.9rem;
   font-weight: 600;
@@ -549,7 +549,7 @@ header {
 .ai-count-btn.selected,
 .difficulty-btn.selected {
   background-color: #000000;
-  color: #ffffff;
+  color: #fefefe;
 }
 
 .start-button {
@@ -580,7 +580,7 @@ header {
   position: absolute;
   width: 3.25rem;
   height: 3.25rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
   border: 0.2rem solid #000000;
   border-radius: 50%;
   display: flex;
@@ -595,14 +595,14 @@ header {
 
 .players-circle li.active {
   background-color: #ff6b6b;
-  color: #ffffff;
+  color: #fefefe;
   border-color: #ff0000;
   animation: pulse 1s infinite;
 }
 
 .players-circle li.eliminated {
   background-color: #666666;
-  color: #ffffff;
+  color: #fefefe;
   border-color: #333333;
   opacity: 0.5;
 }
@@ -736,7 +736,7 @@ header {
   font-weight: 700;
   border: 0.1rem solid #cccccc;
   border-radius: 0.25rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
   transition: all 0.2s ease;
 }
 
@@ -793,7 +793,7 @@ header {
   text-align: center;
   border: 0.2rem solid #000000;
   border-radius: 0.5rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
 }
 
 .word-input:focus {
@@ -829,27 +829,27 @@ header {
   border: 0.2rem solid #000000;
   border-radius: 0.5rem;
   background-color: #000000;
-  color: #ffffff;
+  color: #fefefe;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: "Quantico", sans-serif;
 }
 
 .game-button:hover {
-  background-color: #ffffff;
+  background-color: #fefefe;
   color: #000000;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .game-button.secondary {
-  background-color: #ffffff;
+  background-color: #fefefe;
   color: #000000;
 }
 
 .game-button.secondary:hover {
   background-color: #000000;
-  color: #ffffff;
+  color: #fefefe;
 }
 
 /* Round Display Styling */
@@ -870,7 +870,7 @@ header {
   padding: 1.25rem;
   border: 0.2rem solid #000000;
   border-radius: 0.5rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
   box-sizing: border-box;
 }
 
@@ -895,7 +895,7 @@ header {
   font-weight: 600;
   border: 0.2rem solid #000000;
   border-radius: 0.5rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
   font-family: "Quantico", sans-serif;
   box-sizing: border-box;
 }
@@ -1009,7 +1009,7 @@ header {
   padding: 0.5rem 0.875rem;
   border: 0.15rem solid #000000;
   border-radius: 0.5rem;
-  background-color: #ffffff;
+  background-color: #fefefe;
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -1020,7 +1020,7 @@ header {
   text-transform: uppercase;
   letter-spacing: 0.05rem;
   background-color: #000000;
-  color: #ffffff;
+  color: #fefefe;
   border-radius: 0.3rem;
   padding: 0.15rem 0.4rem;
 }
@@ -1086,7 +1086,7 @@ header {
     position: absolute;
     top: 4rem;
     right: 0;
-    background-color: #ffffff;
+    background-color: #fefefe;
     border: #000000 0.2rem solid;
     border-top: none;
     flex-direction: column;
