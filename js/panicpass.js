@@ -80,6 +80,71 @@ console.log('Info | DOM elements loaded');
 console.log('Info | Game variables initialized');
 console.groupEnd();
 
+function setWordInputState({
+    disabled = false,
+    opacity,
+    placeholder,
+    clear = true,
+    focus = false
+} = {}) {
+    if (!wordInput) return;
+    if (clear) wordInput.value = '';
+    wordInput.disabled = disabled;
+    if (opacity !== undefined) wordInput.style.opacity = opacity;
+    if (placeholder !== undefined) wordInput.placeholder = placeholder;
+    if (!disabled && focus) wordInput.focus();
+}
+
+function clearGameTimeouts() {
+    clearTimeout(aiTypingTimeout);
+    clearTimeout(returnToStartTimeout);
+    clearTimeout(gameFlowTimeout);
+    clearTimeout(roundTransitionTimeout);
+    clearTimeout(uiRefreshTimeout);
+}
+
+function getRemainingPlayers() {
+    return players.filter(p => !p.eliminated);
+}
+
+function getNextAliveIndex(fromIndex) {
+    if (!players.length) return 0;
+    let next = fromIndex;
+    do {
+        next = (next + 1) % players.length;
+    } while (players[next].eliminated && next !== fromIndex);
+    return next;
+}
+
+function scheduleNextTurn() {
+    clearInterval(timerInterval);
+    setTimeout(function() {
+        if (!gameActive) return;
+        setTimeout(function() {
+            if (!gameActive) return;
+            startTimer();
+            getNewWordAndPassBomb();
+        }, 1500);
+    }, 1000);
+}
+
+function onWordCompletedBy(player) {
+    playersCompletedThisRound++;
+    const remainingPlayers = getRemainingPlayers();
+    const allPlayersCompleted = playersCompletedThisRound >= remainingPlayers.length;
+
+    if (allPlayersCompleted) {
+        statusMessage.textContent = `${player.name} typed correctly! Round ${currentRound} complete!`;
+        playersCompletedThisRound = 0;
+        currentRound++;
+        updateRoundDisplay();
+    } else {
+        statusMessage.textContent = `${player.name} typed correctly! Bomb passed.`;
+    }
+
+    scheduleNextTurn();
+}
+
 /**
  * Fetches a random word from the API with timeout.
  *
@@ -490,15 +555,12 @@ function explode() {
     statusMessage.textContent = `Boom! ${currentPlayer.name} lost.`;
     currentPlayer.eliminated = true;
 
-    wordInput.disabled = true;
-    wordInput.value = '';
-    wordInput.style.opacity = '1';
-    wordInput.placeholder = 'Type here...';
+    setWordInputState({ disabled: true, opacity: '1', placeholder: 'Type here...' });
 
     renderPlayers(players);
     updatePlayersCount();
 
-    const remainingPlayers = players.filter(p => !p.eliminated);
+    const remainingPlayers = getRemainingPlayers();
     console.log('Info | Remaining players:', remainingPlayers.length);
 
     if (remainingPlayers.length <= 1) {
@@ -521,11 +583,7 @@ function explode() {
             gameActive = false;
             clearInterval(timerInterval);
 
-            clearTimeout(aiTypingTimeout);
-            clearTimeout(returnToStartTimeout);
-            clearTimeout(gameFlowTimeout);
-            clearTimeout(roundTransitionTimeout);
-            clearTimeout(uiRefreshTimeout);
+            clearGameTimeouts();
 
             returnToStartTimeout = setTimeout(() => {
                 returnToStartScreen();
@@ -543,13 +601,7 @@ function explode() {
             gameActive = true;
             statusMessage.textContent = '';
 
-            let nextPlayerIndex = currentPlayerIndex;
-            nextPlayerIndex = (nextPlayerIndex + 1) % players.length;
-            while (players[nextPlayerIndex].eliminated) {
-                nextPlayerIndex = (nextPlayerIndex + 1) % players.length;
-            }
-
-            currentPlayerIndex = nextPlayerIndex;
+            currentPlayerIndex = getNextAliveIndex(currentPlayerIndex);
             currentRound++;
             playersCompletedThisRound = 0;
             updateRoundDisplay();
@@ -563,19 +615,12 @@ function explode() {
                     const currentPlayer = players[currentPlayerIndex];
                     if (currentPlayer.isAI) {
                         statusMessage.textContent = '';
-                        wordInput.disabled = true;
-                        wordInput.value = '';
-                        wordInput.style.opacity = '0.5';
-                        wordInput.placeholder = `${currentPlayer.name} is typing...`;
+                        setWordInputState({ disabled: true, opacity: '0.5', placeholder: `${currentPlayer.name} is typing...` });
                         startTimer();
                         startAITurn();
                     } else {
                         statusMessage.textContent = '';
-                        wordInput.disabled = false;
-                        wordInput.style.opacity = '1';
-                        wordInput.placeholder = 'Type here...';
-                        wordInput.value = '';
-                        wordInput.focus();
+                        setWordInputState({ disabled: false, opacity: '1', placeholder: 'Type here...', focus: true });
                         updateWordDisplay('');
                         startTimer();
                     }
@@ -591,31 +636,18 @@ function explode() {
 function passBomb() {
     console.group('Debug | Passing bomb');
 
-    let nextPlayerIndex = currentPlayerIndex;
-    nextPlayerIndex = (nextPlayerIndex + 1) % players.length;
-    while (players[nextPlayerIndex].eliminated && nextPlayerIndex !== currentPlayerIndex) {
-        nextPlayerIndex = (nextPlayerIndex + 1) % players.length;
-    }
-
-    currentPlayerIndex = nextPlayerIndex;
+    currentPlayerIndex = getNextAliveIndex(currentPlayerIndex);
     const currentPlayer = players[currentPlayerIndex];
     console.log('Info | Bomb passed to:', currentPlayer.name, 'isAI:', currentPlayer.isAI);
     renderPlayers(players);
 
     if (currentPlayer.isAI) {
         statusMessage.textContent = '';
-        wordInput.disabled = true;
-        wordInput.value = '';
-        wordInput.style.opacity = '0.5';
-        wordInput.placeholder = `${currentPlayer.name} is typing...`;
+        setWordInputState({ disabled: true, opacity: '0.5', placeholder: `${currentPlayer.name} is typing...` });
         startAITurn();
     } else {
         statusMessage.textContent = '';
-        wordInput.disabled = false;
-        wordInput.style.opacity = '1';
-        wordInput.placeholder = 'Type here...';
-        wordInput.value = '';
-        wordInput.focus();
+        setWordInputState({ disabled: false, opacity: '1', placeholder: 'Type here...', focus: true });
         updateWordDisplay('');
     }
 
@@ -684,32 +716,8 @@ function animateAITyping() {
                 console.log('Success | AI completed word:', currentPlayer.name);
                 console.groupEnd();
                 aiCompletedWord = true;
-                playersCompletedThisRound++;
-
-                const remainingPlayers = players.filter(p => !p.eliminated);
-                const allPlayersCompleted = playersCompletedThisRound >= remainingPlayers.length;
-
-                if (allPlayersCompleted) {
-                    statusMessage.textContent = `${currentPlayer.name} typed correctly! Round ${currentRound} complete!`;
-                    playersCompletedThisRound = 0;
-                    currentRound++;
-                    updateRoundDisplay();
-                } else {
-                    statusMessage.textContent = `${currentPlayer.name} typed correctly! Bomb passed.`;
-                }
-
-                clearInterval(timerInterval);
-                setTimeout(function() {
-                    if (gameActive) {
-                        setTimeout(function() {
-                            if (gameActive) {
-                                aiCompletedWord = false;
-                                startTimer();
-                                getNewWordAndPassBomb();
-                            }
-                        }, 1500);
-                    }
-                }, 1000);
+                onWordCompletedBy(currentPlayer);
+                aiCompletedWord = false;
             }
             return;
         }
@@ -832,31 +840,7 @@ function updateWordDisplay(input) {
         console.log('Success | Word completed by:', currentPlayer.name, 'isAI:', currentPlayer.isAI);
 
         if (!currentPlayer.isAI) {
-            playersCompletedThisRound++;
-            const remainingPlayers = players.filter(p => !p.eliminated);
-            const allPlayersCompleted = playersCompletedThisRound >= remainingPlayers.length;
-
-            if (allPlayersCompleted) {
-                statusMessage.textContent = `${currentPlayer.name} typed correctly! Round ${currentRound} complete!`;
-                playersCompletedThisRound = 0;
-                currentRound++;
-                updateRoundDisplay();
-            } else {
-                statusMessage.textContent = `${currentPlayer.name} typed correctly! Bomb passed.`;
-            }
-
-            clearInterval(timerInterval);
-
-            setTimeout(function() {
-                if (gameActive) {
-                    setTimeout(function() {
-                        if (gameActive) {
-                            startTimer();
-                            getNewWordAndPassBomb();
-                        }
-                    }, 1500);
-                }
-            }, 1000);
+            onWordCompletedBy(currentPlayer);
         }
     }
 }
@@ -901,10 +885,7 @@ async function startGame() {
     updateRoundDisplay();
     updatePlayersCount();
 
-    wordInput.disabled = false;
-    wordInput.value = '';
-    wordInput.style.opacity = '1';
-    wordInput.placeholder = 'Type here...';
+    setWordInputState({ disabled: false, opacity: '1', placeholder: 'Type here...', focus: true });
 
     renderPlayers(players);
 
@@ -913,7 +894,6 @@ async function startGame() {
 
     statusMessage.textContent = '';
 
-    wordInput.focus();
     startTimer();
 
     console.groupEnd();
@@ -936,10 +916,7 @@ function resetGame() {
     timeRemaining = getTimerForRound(1);
     updateTimer();
 
-    wordInput.disabled = true;
-    wordInput.value = '';
-    wordInput.style.opacity = '1';
-    wordInput.placeholder = 'Type here...';
+    setWordInputState({ disabled: true, opacity: '1', placeholder: 'Type here...' });
     wordDisplay.innerHTML = '';
 
     if (players.length > 0) {
