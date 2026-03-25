@@ -846,6 +846,19 @@ header {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+.game-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.game-button:disabled:hover {
+  background-color: #000000;
+  color: #fefefe;
+}
+
 .game-button.secondary {
   background-color: #fefefe;
   color: #000000;

@@ -1128,6 +1128,7 @@ function onSessionCreated(msg) {
 
     showLobbyScreen(msg.code, msg.players);
     startMultiBtn.style.display = 'block';
+    if (startMultiBtn) startMultiBtn.disabled = players.length < 2;
     setMultiStatus('Waiting for players to join...');
 }
 
@@ -1145,6 +1146,7 @@ function onSessionJoined(msg) {
 
     showLobbyScreen(msg.code, msg.players);
     startMultiBtn.style.display = isHost ? 'block' : 'none';
+    if (startMultiBtn) startMultiBtn.disabled = !isHost || players.length < 2;
     setMultiStatus(isHost ? 'Waiting for players...' : 'Waiting for host to start...');
 }
 
@@ -1161,6 +1163,7 @@ function onLobbyState(msg) {
 
     isHost = msg.hostId === myPlayerId;
     startMultiBtn.style.display = isHost ? 'block' : 'none';
+    if (startMultiBtn) startMultiBtn.disabled = !isHost || msg.players.length < 2;
 
     if (isHost) {
         setMultiStatus(msg.players.length < 2
