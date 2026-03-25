@@ -29,6 +29,7 @@ const lobbyScreen      = document.querySelector('#lobby-screen');
 const lobbyPlayersList = document.querySelector('#lobby-players-list');
 const lobbyCodeDisplay = document.querySelector('#lobby-code-display');
 const lobbyStatusMsg  = document.querySelector('#lobby-status-msg');
+const copyCodeBtn     = document.querySelector('#copy-code-btn');
 const startMultiBtn    = document.querySelector('#start-multi-btn');
 const leaveLobbyBtn    = document.querySelector('#leave-lobby-btn');
 const multiStatusMsg   = document.querySelector('#multi-status-msg');
@@ -1602,6 +1603,31 @@ if (createSessionBtn) createSessionBtn.addEventListener('click', handleCreateSes
 if (joinSessionBtn)   joinSessionBtn.addEventListener('click', handleJoinSession);
 if (startMultiBtn)    startMultiBtn.addEventListener('click', handleStartMultiplayer);
 if (leaveLobbyBtn)    leaveLobbyBtn.addEventListener('click', handleLeaveLobby);
+if (copyCodeBtn) {
+    copyCodeBtn.addEventListener('click', async () => {
+        const code = (lobbyCodeDisplay?.textContent || '').trim();
+        if (!code || code === '------') {
+            setMultiStatus('No session code to copy yet.');
+            return;
+        }
+
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(code);
+            } else {
+                const tempInput = document.createElement('input');
+                tempInput.value = code;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+            }
+            setMultiStatus('Session code copied to clipboard.');
+        } catch {
+            setMultiStatus('Unable to copy. Please select and copy manually.');
+        }
+    });
+}
 
 if (sessionCodeInput) {
     sessionCodeInput.addEventListener('keydown', (e) => {
