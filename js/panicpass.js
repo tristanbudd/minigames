@@ -7,6 +7,7 @@ const playersCircle      = document.querySelector('#players-circle');
 const wordDisplay        = document.querySelector('#word-display');
 const wordInput          = document.querySelector('#word-input');
 const timerElement       = document.querySelector('#game-timer');
+const timerWrapper       = document.querySelector('.timer-wrapper');
 const statusMessage      = document.querySelector('#status-message');
 const roundNumber        = document.querySelector('#round-number');
 const playersCount       = document.querySelector('#players-count');
@@ -458,10 +459,15 @@ function updateTimer() {
 
     timerElement.textContent = timeRemaining.toFixed(1);
 
-    if (timeRemaining <= 3) {
-        timerElement.classList.add('warning');
-    } else {
-        timerElement.classList.remove('warning');
+    const isWarning = timeRemaining <= 3;
+    const isCritical = timeRemaining <= 1.5;
+
+    timerElement.classList.toggle('warning', isWarning);
+    timerElement.classList.toggle('critical', isCritical);
+
+    if (timerWrapper) {
+        timerWrapper.classList.toggle('warning', isWarning);
+        timerWrapper.classList.toggle('critical', isCritical);
     }
 }
 

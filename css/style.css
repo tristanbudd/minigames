@@ -662,21 +662,65 @@ header {
 }
 
 .timer-wrapper {
-  border: 0.2rem solid #000000;
-  padding: 0.625rem 1.5rem;
-  border-radius: 0.5rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.75rem;
   display: flex;
   align-items: center;
+  gap: 0.25rem;
+  background-color: transparent;
+  pointer-events: none;
 }
 
 .game-timer {
   font-size: 1.6rem;
   font-weight: 700;
+  transition: color 0.2s ease, text-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .game-timer.warning {
   color: #ff6b6b;
-  text-decoration: underline;
+  text-shadow: 0 0 0.6rem rgba(255, 107, 107, 0.6);
+}
+
+.game-timer.critical {
+  color: #ff3b30;
+  text-shadow: 0 0 0.9rem rgba(255, 59, 48, 0.8);
+  animation: timerPulse 0.8s ease-in-out infinite;
+}
+
+.timer-wrapper.warning {
+  background-color: rgba(255, 107, 107, 0.08);
+}
+
+.timer-wrapper.critical {
+  background-color: rgba(255, 59, 48, 0.12);
+}
+
+.timer-wrapper.warning .timer-label,
+.timer-wrapper.warning .timer-unit {
+  color: #c44d4d;
+}
+
+.timer-wrapper.critical .timer-label,
+.timer-wrapper.critical .timer-unit {
+  color: #ff3b30;
+}
+
+@keyframes timerPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .status-message {
@@ -707,6 +751,7 @@ header {
   justify-content: center;
   align-items: center;
   margin: 0.5rem 0;
+  position: relative;
 }
 
 .word-section {

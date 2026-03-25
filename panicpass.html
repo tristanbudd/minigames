@@ -231,20 +231,20 @@
             </div>
         </section>
 
-        <!-- Game Status -->
-        <section class="game-status" aria-live="polite" aria-atomic="true">
-            <div class="timer-wrapper">
+        <!-- Players Circle -->
+        <section class="players-section" aria-label="Players">
+            <div class="timer-wrapper" aria-live="polite" aria-atomic="true">
                 <span class="timer-label">Time:</span>
                 <span id="game-timer" class="game-timer">10.0</span>
                 <span class="timer-unit">s</span>
             </div>
-            <p id="status-message" class="status-message"></p>
-        </section>
-
-        <!-- Players Circle -->
-        <section class="players-section" aria-label="Players">
             <ul id="players-circle" class="players-circle" role="list">
             </ul>
+        </section>
+
+        <!-- Game Status -->
+        <section class="game-status" aria-live="polite" aria-atomic="true">
+            <p id="status-message" class="status-message"></p>
         </section>
 
         <!-- Word Input Area -->
