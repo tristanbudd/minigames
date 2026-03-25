@@ -469,6 +469,11 @@ function updateTimer() {
         timerWrapper.classList.toggle('warning', isWarning);
         timerWrapper.classList.toggle('critical', isCritical);
     }
+
+    if (playersCircle) {
+        playersCircle.classList.toggle('warning', isWarning);
+        playersCircle.classList.toggle('critical', isCritical);
+    }
 }
 
 /**
