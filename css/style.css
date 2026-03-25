@@ -1037,7 +1037,7 @@ header {
 }
 
 .players-circle li.self {
-  border-style: dashed;
+  border-style: dotted;
 }
 
 /* Media Queries (Mobile Responsiveness) */

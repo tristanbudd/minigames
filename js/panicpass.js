@@ -418,7 +418,7 @@ function renderPlayers(list) {
         if (isActive && !player.eliminated) li.classList.add('active');
         if (player.eliminated) li.classList.add('eliminated');
 
-        if (selectedGameMode === 'multiplayer' && player.id === myPlayerId) {
+        if (!player.isAI) {
             li.classList.add('self');
         }
 
