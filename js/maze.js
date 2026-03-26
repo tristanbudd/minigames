@@ -54,8 +54,6 @@ function showStartScreen() {
     startScreen.style.display = 'flex';
     gameScreen.style.display  = 'none';
     selectedMode = null;
-    if (singleplayerOption) singleplayerOption.classList.remove('selected');
-    if (multiplayerOption) multiplayerOption.classList.remove('selected');
     if (aiSelector) aiSelector.classList.remove('visible');
     if (difficultySelector) difficultySelector.classList.remove('visible');
     aiCountBtns.forEach(btn => btn.classList.remove('selected'));
