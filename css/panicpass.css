@@ -626,6 +626,7 @@
   gap: 0.375rem;
   margin-top: 0.2rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .lobby-code-label {
