@@ -475,6 +475,14 @@ function randomInt(max) {
     return Math.floor(Math.random() * max);
 }
 
+/**
+ * Carves a guaranteed path from start to goal in the maze grid.
+ *
+ * @param {number[][]} grid - The maze grid.
+ * @param {Object} start - Starting position {x, y}.
+ * @param {Object} goal - Goal position {x, y}.
+ * @returns {Set} Set of cells in the guaranteed path.
+ */
 function carveGuaranteedPath(grid, start, goal) {
     let x = start.x;
     let y = start.y;
@@ -495,6 +503,14 @@ function carveGuaranteedPath(grid, start, goal) {
     return path;
 }
 
+/**
+ * Randomly places additional walls in the maze while ensuring a path from start to goal remains.
+ *
+ * @param {number[][]} grid - The maze grid.
+ * @param {number} count - Number of walls to place.
+ * @param {Object} start - Starting position {x, y}.
+ * @param {Object} goal - Goal position {x, y}.
+ */
 function placeRandomWalls(grid, count, start, goal) {
     let placed = 0;
     for (let i = 0; i < count; i++) {
@@ -509,6 +525,14 @@ function placeRandomWalls(grid, count, start, goal) {
     }
 }
 
+/**
+ * Checks if there is a path from start to goal in the maze grid.
+ *
+ * @param {number[][]} grid - The maze grid.
+ * @param {Object} start - Starting position {x, y}.
+ * @param {Object} goal - Goal position {x, y}.
+ * @returns {boolean} True if a path exists, false otherwise.
+ */
 function hasPath(grid, start, goal) {
     const queue = [start];
     const seen = new Set([`${start.x},${start.y}`]);
@@ -537,6 +561,12 @@ function hasPath(grid, start, goal) {
     return false;
 }
 
+/**
+ * Builds the list of players for the game.
+ *
+ * @param {number} aiCount - Number of AI players.
+ * @returns {Array} List of players.
+ */
 function buildPlayers(aiCount) {
     const list = [{ id: 1, name: 'You', eliminated: false, isAI: false }];
     for (let i = 1; i <= aiCount; i++) {
@@ -545,10 +575,17 @@ function buildPlayers(aiCount) {
     return list;
 }
 
+/**
+ * Returns the list of players who are still in the game.
+ * @returns {Array} List of remaining players.
+ */
 function remainingPlayers() {
     return players.filter(p => !p.eliminated);
 }
 
+/**
+ * Advances the game to the next player.
+ */
 function advanceToNextPlayer() {
     const alive = remainingPlayers();
     if (alive.length <= 1) {
@@ -566,6 +603,9 @@ function advanceToNextPlayer() {
     startRound();
 }
 
+/**
+ * Ends the game and shows the winner or game over message.
+ */
 function endGame() {
     const winner = remainingPlayers()[0];
     if (gameStatusMessage) {
@@ -581,6 +621,9 @@ function endGame() {
     }, 3000);
 }
 
+/**
+ * Renders the list of players and their statuses.
+ */
 function renderPlayers() {
     if (!playersList) return;
     playersList.innerHTML = '';
@@ -595,6 +638,13 @@ function renderPlayers() {
     });
 }
 
+/**
+ * Gets valid neighboring cells for the AI to consider for movement.
+ *
+ * @param {number} x - Current x position.
+ * @param {number} y - Current y position.
+ * @returns {Array} List of valid neighboring positions.
+ */
 function getNeighbors(x, y) {
     const dirs = [
         { dx: 1, dy: 0 },
@@ -607,6 +657,13 @@ function getNeighbors(x, y) {
         .filter(pos => maze[pos.y] && maze[pos.y][pos.x] === 0);
 }
 
+/**
+ * Finds the next step towards the goal using BFS for the AI player.
+ *
+ * @param {Object} start - Current position {x, y}.
+ * @param {Object} goal - Goal position {x, y}.
+ * @returns {Object|null} Next position {x, y} towards the goal or null if no path exists.
+ */
 function shortestPathNextStep(start, goal) {
     const queue = [start];
     const cameFrom = new Map();
@@ -646,6 +703,11 @@ function shortestPathNextStep(start, goal) {
     return current;
 }
 
+/**
+ * Returns AI behavior profile based on selected difficulty.
+ *
+ * @returns {Object} AI profile with mistakeChance and moveDelay.
+ */
 function getAIDifficultyProfile() {
     if (selectedDifficulty === 'easy') {
         return { mistakeChance: 0.35, moveDelay: 450 };
@@ -656,6 +718,11 @@ function getAIDifficultyProfile() {
     return { mistakeChance: 0.2, moveDelay: 350 };
 }
 
+/**
+ * Runs the AI player's turn by calculating the next move and executing it with a delay.
+ *
+ * @param {Object} player - The AI player object.
+ */
 function runAITurn(player) {
     clearInterval(aiMoveInterval);
     const profile = getAIDifficultyProfile();
@@ -678,6 +745,11 @@ function runAITurn(player) {
     }, profile.moveDelay);
 }
 
+/**
+ * Handles selecting the number of AI opponents and updates UI accordingly.
+ *
+ * @param {number} count - The number of AI opponents to select.
+ */
 function selectAICount(count) {
     selectedAICount = count;
     aiCountBtns.forEach(btn => {
@@ -686,6 +758,11 @@ function selectAICount(count) {
     updateStartButton();
 }
 
+/**
+ * Handles selecting the difficulty level for AI opponents and updates UI accordingly.
+ *
+ * @param {string} level - The difficulty level to select ('easy', 'medium', 'hard').
+ */
 function selectDifficulty(level) {
     selectedDifficulty = level;
     difficultyBtns.forEach(btn => {
@@ -695,6 +772,10 @@ function selectDifficulty(level) {
     updateStartButton();
 }
 
+/**
+ * Updates the start button state based on current selections and game mode.
+ * Enables the button only if the required selections for singleplayer mode are made.
+ */
 function updateStartButton() {
     const readyForSingleplayer =
         selectedMode === 'singleplayer' &&
@@ -704,6 +785,11 @@ function updateStartButton() {
     startGameBtn.classList.toggle('enabled', readyForSingleplayer);
 }
 
+/**
+ * Handles selecting the game mode (singleplayer or multiplayer) and updates UI accordingly.
+ *
+ * @param {string} mode - The game mode to select ('singleplayer' or 'multiplayer').
+ */
 function selectGameMode(mode) {
     selectedMode = mode;
     singleplayerOption.classList.toggle('selected', mode === 'singleplayer');

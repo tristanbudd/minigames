@@ -3,6 +3,11 @@
 const burgerMenu = document.querySelector('#header-burger');
 const mobileNav = document.querySelector('#mobile-nav');
 
+/**
+ * Sets the state of the burger menu and mobile navigation.
+ *
+ * @param {boolean} isOpen - Whether the menu should be open or closed.
+ */
 function setMenuState(isOpen) {
     if (!burgerMenu || !mobileNav) {
         return;

@@ -80,6 +80,9 @@ console.log('Info | DOM elements loaded');
 console.log('Info | Game variables initialized');
 console.groupEnd();
 
+/**
+ * Sets the state of the word input field, including enabling/disabling, opacity, placeholder text, and optionally clearing the input and focusing it.
+ */
 function setWordInputState({
     disabled = false,
     opacity,
@@ -95,6 +98,9 @@ function setWordInputState({
     if (!disabled && focus) wordInput.focus();
 }
 
+/**
+ * Clears all game-related timeouts and intervals to prevent unintended behavior when the game state changes, such as when a player is eliminated or the game ends. This function should be called whenever the game needs to reset timers, such as when returning to the start screen or after a player is eliminated.
+ */
 function clearGameTimeouts() {
     clearTimeout(aiTypingTimeout);
     clearTimeout(returnToStartTimeout);
@@ -103,10 +109,17 @@ function clearGameTimeouts() {
     clearTimeout(uiRefreshTimeout);
 }
 
+/**
+ * Returns an array of all players who have not been eliminated.
+ * @returns {Array} An array of remaining players.
+ */
 function getRemainingPlayers() {
     return players.filter(p => !p.eliminated);
 }
 
+/**
+ * Finds the next index of a player who is still alive (not eliminated) starting from a given index. This function is used to determine which player should receive the bomb next after a player is eliminated or after a round is completed. It loops through the players array, skipping any players that have been marked as eliminated, and returns the index of the next active player. If all players are eliminated, it returns 0 by default.
+ */
 function getNextAliveIndex(fromIndex) {
     if (!players.length) return 0;
     let next = fromIndex;
@@ -116,6 +129,9 @@ function getNextAliveIndex(fromIndex) {
     return next;
 }
 
+/**
+ * Schedules the next turn after a player completes a word or after a round is completed. It clears any existing timer intervals and sets timeouts to transition to the next turn with appropriate delays. The first timeout creates a short pause after a player completes a word, and the second timeout starts the timer and gets a new word for the next player. This function ensures that there is a smooth transition between turns while allowing for any necessary animations or status messages to be displayed before the next turn begins.
+ */
 function scheduleNextTurn() {
     clearInterval(timerInterval);
     setTimeout(function() {
@@ -128,6 +144,11 @@ function scheduleNextTurn() {
     }, 1000);
 }
 
+/**
+ * Handles the event when a player successfully completes typing the current word. It increments the count of players who have completed the word this round, checks if all remaining players have completed it, and updates the status message accordingly. If all players have completed the word, it increments the round number and updates the round display. Finally, it schedules the next turn to continue the game flow.
+ * 
+ * @param {Object} player - The player object representing the player who completed the word, containing properties such as name and id.
+ */
 function onWordCompletedBy(player) {
     playersCompletedThisRound++;
     const remainingPlayers = getRemainingPlayers();
