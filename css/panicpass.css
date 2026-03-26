@@ -192,10 +192,6 @@
   opacity: 0.5;
 }
 
-.players-circle li.self {
-  border-style: dotted;
-}
-
 /* Round Info */
 .round-info {
   display: flex;

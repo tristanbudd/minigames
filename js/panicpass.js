@@ -506,10 +506,6 @@ function renderPlayers(list) {
         if (isActive && !player.eliminated) li.classList.add('active');
         if (player.eliminated) li.classList.add('eliminated');
 
-        if (!player.isAI) {
-            li.classList.add('self');
-        }
-
         playersCircle.appendChild(li);
     });
 }
