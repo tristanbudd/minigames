@@ -22,6 +22,21 @@ const difficultyBtns     = document.querySelectorAll('.difficulty-btn');
 const playersList        = document.querySelector('#players-list');
 const turnIndicator      = document.querySelector('#turn-indicator');
 
+/* Multiplayer DOM elements */
+const multiplayerSetup = document.querySelector('#multiplayer-setup');
+const sessionCodeInput = document.querySelector('#session-code-input');
+const playerNameInput  = document.querySelector('#player-name-input');
+const createSessionBtn = document.querySelector('#create-session-btn');
+const joinSessionBtn   = document.querySelector('#join-session-btn');
+const lobbyScreen      = document.querySelector('#lobby-screen');
+const lobbyPlayersList = document.querySelector('#lobby-players-list');
+const lobbyCodeDisplay = document.querySelector('#lobby-code-display');
+const lobbyStatusMsg   = document.querySelector('#lobby-status-msg');
+const copyCodeBtn      = document.querySelector('#copy-code-btn');
+const startMultiBtn    = document.querySelector('#start-multi-btn');
+const leaveLobbyBtn    = document.querySelector('#leave-lobby-btn');
+const multiStatusMsg   = document.querySelector('#multi-status-msg');
+
 /* Game state variables */
 let gridSize               = 6;
 let maze                   = [];
@@ -42,6 +57,23 @@ let players                = [];
 let roundsPerStage         = 3;
 let turnsCompletedThisRound = 0;
 
+/* Multiplayer state variables */
+let ws                   = null;
+let myPlayerId           = null;
+let mySessionCode        = null;
+let isHost               = false;
+let multiCurrentPlayerId = null;
+
+/* WebSocket server URL - auto-select based on environment */
+const WS_URL = (() => {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'ws://localhost:8081';
+    } else {
+        return 'wss://api.tristanbudd.com/minigames/mazerun';
+    }
+})();
+
 console.group('Info | Maze Run Initialized');
 console.log('Info | DOM elements loaded');
 console.log('Info | Game variables initialized');
@@ -53,6 +85,8 @@ console.groupEnd();
 function showStartScreen() {
     startScreen.style.display = 'flex';
     gameScreen.style.display  = 'none';
+    if (lobbyScreen) lobbyScreen.style.display = 'none';
+    if (multiplayerSetup) multiplayerSetup.style.display = 'none';
     selectedMode = null;
     if (singleplayerOption) singleplayerOption.classList.remove('selected');
     if (multiplayerOption)  multiplayerOption.classList.remove('selected');
@@ -72,6 +106,7 @@ function showStartScreen() {
  */
 function showGameScreen() {
     startScreen.style.display = 'none';
+    if (lobbyScreen) lobbyScreen.style.display = 'none';
     gameScreen.style.display  = 'block';
 }
 
@@ -404,6 +439,7 @@ function movePlayer(dx, dy, fromAI = false) {
  * @param {MouseEvent} event - Click event.
  */
 function handleCellClick(event) {
+    if (selectedMode === 'multiplayer') return;
     const target = event.target;
     if (!target.classList.contains('maze-cell') || target.classList.contains('wall')) return;
 
@@ -420,8 +456,6 @@ function handleCellClick(event) {
  * @param {KeyboardEvent} event - Keydown event.
  */
 function handleKeyDown(event) {
-    if (!gameActive || players[currentPlayerIndex].isAI) return;
-
     const map = {
         arrowup: [0, -1], w: [0, -1],
         arrowdown: [0, 1], s: [0, 1],
@@ -431,6 +465,13 @@ function handleKeyDown(event) {
     const move = map[event.key.toLowerCase()];
     if (!move) return;
 
+    if (selectedMode === 'multiplayer') {
+        handleMultiKeyDown(move[0], move[1]);
+        event.preventDefault();
+        return;
+    }
+
+    if (!gameActive || players[currentPlayerIndex].isAI) return;
     movePlayer(move[0], move[1]);
     event.preventDefault();
 }
@@ -535,6 +576,10 @@ function startGame() {
  * Exits the current game and returns to the start screen.
  */
 function leaveGame() {
+    if (selectedMode === 'multiplayer') {
+        handleLeaveMultiplayerGame();
+        return;
+    }
     gameActive = false;
     clearInterval(timerInterval);
     clearInterval(aiMoveInterval);
@@ -729,10 +774,18 @@ function endGame() {
 function renderPlayers() {
     if (!playersList) return;
     playersList.innerHTML = '';
-    players.forEach((player, index) => {
+
+    const list = selectedMode === 'multiplayer' ? players : players;
+
+    list.forEach((player, index) => {
         const li = document.createElement('li');
         li.className = 'player-item';
-        if (index === currentPlayerIndex && !player.eliminated) li.classList.add('active');
+
+        const isActive = selectedMode === 'multiplayer'
+            ? player.id === multiCurrentPlayerId
+            : index === currentPlayerIndex && !player.eliminated;
+
+        if (isActive && !player.eliminated) li.classList.add('active');
         if (player.eliminated) li.classList.add('eliminated');
         li.textContent = player.name;
         playersList.appendChild(li);
@@ -768,6 +821,7 @@ function selectDifficulty(level) {
 function updateStartButton() {
     const ready = selectedMode === 'singleplayer' && selectedAICount > 0 && !!selectedDifficulty;
     startGameBtn.classList.toggle('enabled', ready);
+    startGameBtn.style.display = selectedMode === 'multiplayer' ? 'none' : '';
 }
 
 /**
@@ -783,16 +837,585 @@ function selectGameMode(mode) {
     if (mode === 'singleplayer') {
         aiSelector.classList.add('visible');
         difficultySelector.classList.add('visible');
+        if (multiplayerSetup) multiplayerSetup.style.display = 'none';
         if (!document.querySelector('.ai-count-btn.selected'))  selectAICount(2);
         if (!document.querySelector('.difficulty-btn.selected')) selectDifficulty('medium');
         if (startStatusMessage) startStatusMessage.textContent = '';
     } else {
         aiSelector.classList.remove('visible');
         difficultySelector.classList.remove('visible');
-        if (startStatusMessage) startStatusMessage.textContent = 'Multiplayer coming soon.';
+        if (multiplayerSetup) multiplayerSetup.style.display = 'flex';
+        if (startStatusMessage) startStatusMessage.textContent = '';
     }
 
     updateStartButton();
+}
+
+/**
+ * Opens a WebSocket connection to the game server.
+ * Resolves once the connected handshake is received.
+ *
+ * @returns {Promise<void>} Resolves on successful connection.
+ */
+function connectWebSocket() {
+    return new Promise((resolve, reject) => {
+        console.log('Info | Connecting to WebSocket server:', WS_URL);
+
+        ws = new WebSocket(WS_URL);
+
+        ws.addEventListener('open', () => {
+            console.log('Info | WebSocket connection open');
+        });
+
+        ws.addEventListener('message', (event) => {
+            let msg;
+            try {
+                msg = JSON.parse(event.data);
+            } catch {
+                console.log('Error | Failed to parse server message');
+                return;
+            }
+
+            if (msg.type === 'connected') {
+                myPlayerId = msg.playerId;
+                console.log('Success | Assigned player ID:', myPlayerId);
+                resolve();
+            }
+
+            handleServerMessage(msg);
+        });
+
+        ws.addEventListener('error', (err) => {
+            console.log('Error | WebSocket error:', err);
+            reject(err);
+        });
+
+        ws.addEventListener('close', () => {
+            console.log('Info | WebSocket connection closed');
+            handleDisconnect();
+        });
+    });
+}
+
+/**
+ * Safely sends a JSON message to the server if the socket is open.
+ *
+ * @param {Object} payload - Data to serialise and send.
+ */
+function wsSend(payload) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+    } else {
+        console.log('Warning | Cannot send - WebSocket not open');
+    }
+}
+
+/**
+ * Handles unexpected WebSocket disconnection mid-game or in lobby.
+ */
+function handleDisconnect() {
+    if (gameScreen.style.display !== 'none') {
+        if (gameStatusMessage) gameStatusMessage.textContent = 'Disconnected from server. Returning to menu...';
+        setTimeout(() => {
+            resetMultiplayerState();
+            showStartScreen();
+        }, 3000);
+    } else if (lobbyScreen && lobbyScreen.style.display !== 'none') {
+        setMultiStatus('Disconnected from server.');
+        setTimeout(() => {
+            resetMultiplayerState();
+            showStartScreen();
+        }, 2000);
+    }
+}
+
+/**
+ * Clears all multiplayer state variables and closes the socket if open.
+ */
+function resetMultiplayerState() {
+    console.log('Info | Resetting multiplayer state');
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+    }
+
+    ws                   = null;
+    myPlayerId           = null;
+    mySessionCode        = null;
+    isHost               = false;
+    multiCurrentPlayerId = null;
+    players              = [];
+}
+
+/**
+ * Central dispatch for all messages received from the server.
+ *
+ * @param {Object} msg - Parsed message object with a type field.
+ */
+function handleServerMessage(msg) {
+    switch (msg.type) {
+        case 'connected':
+            break;
+
+        case 'session_created':
+            onSessionCreated(msg);
+            break;
+
+        case 'session_joined':
+            onSessionJoined(msg);
+            break;
+
+        case 'lobby_state':
+            onLobbyState(msg);
+            break;
+
+        case 'game_started':
+            onGameStarted(msg);
+            break;
+
+        case 'turn_start':
+            onTurnStart(msg);
+            break;
+
+        case 'player_moved':
+            onPlayerMoved(msg);
+            break;
+
+        case 'turn_complete':
+            onTurnComplete(msg);
+            break;
+
+        case 'player_eliminated':
+            onPlayerEliminated(msg);
+            break;
+
+        case 'next_round':
+            onNextRound(msg);
+            break;
+
+        case 'game_over':
+            onGameOver(msg);
+            break;
+
+        case 'player_left':
+            onPlayerLeft(msg);
+            break;
+
+        case 'timer_tick':
+            onTimerTick(msg);
+            break;
+
+        case 'player_moved':
+            onPlayerMoved(msg);
+            break;
+
+        case 'error':
+            console.log('Error | Server error:', msg.message);
+            setMultiStatus(`Error: ${msg.message}`);
+            break;
+
+        default:
+            console.log('Warning | Unknown message type from server:', msg.type);
+    }
+}
+
+/**
+ * Called every 100ms by the server to keep the multiplayer timer in sync.
+ *
+ * @param {Object} msg - Server message with the current timeRemaining.
+ */
+function onTimerTick(msg) {
+    timeRemaining = msg.timeRemaining;
+    updateTimer();
+}
+
+/**
+ * Called after the server confirms session creation.
+ * Transitions into the lobby screen as host.
+ *
+ * @param {Object} msg - Server message with code and player list.
+ */
+function onSessionCreated(msg) {
+    console.log('Info | Session created:', msg.code);
+    mySessionCode = msg.code;
+    isHost        = true;
+    players       = msg.players;
+
+    showLobbyScreen(msg.code, msg.players);
+    if (startMultiBtn) {
+        startMultiBtn.style.display = 'block';
+        startMultiBtn.disabled = players.length < 2;
+    }
+    setMultiStatus('Waiting for players to join...');
+}
+
+/**
+ * Called after the server confirms the player has joined a session.
+ * Transitions into the lobby screen as a non-host player.
+ *
+ * @param {Object} msg - Server message with code, player list, and hostId.
+ */
+function onSessionJoined(msg) {
+    console.log('Info | Joined session:', msg.code);
+    mySessionCode = msg.code;
+    isHost        = msg.hostId === myPlayerId;
+    players       = msg.players;
+
+    showLobbyScreen(msg.code, msg.players);
+    if (startMultiBtn) {
+        startMultiBtn.style.display = isHost ? 'block' : 'none';
+        startMultiBtn.disabled = !isHost || players.length < 2;
+    }
+    setMultiStatus(isHost ? 'Waiting for players...' : 'Waiting for host to start...');
+}
+
+/**
+ * Called when the server broadcasts a lobby state update.
+ * Refreshes the player list for all lobby participants.
+ *
+ * @param {Object} msg - Server message with updated player list.
+ */
+function onLobbyState(msg) {
+    console.log('Debug | Lobby state update:', msg.players.map(p => p.name));
+    players = msg.players;
+    renderLobbyPlayers(msg.players);
+
+    isHost = msg.hostId === myPlayerId;
+    if (startMultiBtn) {
+        startMultiBtn.style.display = isHost ? 'block' : 'none';
+        startMultiBtn.disabled = !isHost || msg.players.length < 2;
+    }
+
+    if (isHost) {
+        setMultiStatus(msg.players.length < 2
+            ? 'Need at least 2 players to start.'
+            : 'Ready to start!');
+    } else {
+        setMultiStatus('Waiting for host to start...');
+    }
+}
+
+/**
+ * Shows the lobby screen with the session code and player list.
+ *
+ * @param {string} code - The 6-digit session code.
+ * @param {Array} playerList - Array of player objects.
+ */
+function showLobbyScreen(code, playerList) {
+    startScreen.style.display = 'none';
+    gameScreen.style.display  = 'none';
+    if (lobbyScreen) lobbyScreen.style.display = 'flex';
+
+    if (lobbyCodeDisplay) {
+        lobbyCodeDisplay.textContent = code;
+    }
+
+    renderLobbyPlayers(playerList);
+}
+
+/**
+ * Renders the lobby player list.
+ *
+ * @param {Array} playerList - Array of player objects.
+ */
+function renderLobbyPlayers(playerList) {
+    if (!lobbyPlayersList) return;
+    lobbyPlayersList.innerHTML = '';
+
+    playerList.forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'lobby-player-item';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = p.name;
+        if (p.id === myPlayerId) nameSpan.classList.add('lobby-self');
+        li.appendChild(nameSpan);
+
+        if (p.isHost) {
+            const badge = document.createElement('span');
+            badge.className   = 'lobby-host-badge';
+            badge.textContent = 'Host';
+            li.appendChild(badge);
+        }
+
+        lobbyPlayersList.appendChild(li);
+    });
+}
+
+/**
+ * Sets the multiplayer status message text.
+ *
+ * @param {string} text - Status text to display.
+ */
+function setMultiStatus(text) {
+    if (multiStatusMsg) {
+        multiStatusMsg.textContent   = text;
+        multiStatusMsg.style.display = text ? 'block' : 'none';
+    }
+    if (lobbyStatusMsg) {
+        lobbyStatusMsg.textContent   = text;
+        lobbyStatusMsg.style.display = text ? 'block' : 'none';
+    }
+}
+
+/**
+ * Called when the server signals the game has started.
+ * Transitions all clients from lobby to game screen.
+ *
+ * @param {Object} msg - Server message with player list and round info.
+ */
+function onGameStarted(msg) {
+    console.log('Info | Multiplayer game started');
+    players = msg.players;
+
+    showGameScreen();
+    renderPlayers();
+
+    if (roundNumber) roundNumber.textContent = msg.round;
+    if (gameStatusMessage) gameStatusMessage.textContent = 'Game starting...';
+}
+
+/**
+ * Called when it is a new player's turn to navigate the maze.
+ * Loads the server-provided maze and enables input only for the active player.
+ *
+ * @param {Object} msg - Server message with maze data, positions, and currentPlayerId.
+ */
+function onTurnStart(msg) {
+    console.log('Info | Turn start - current player:', msg.currentPlayerId);
+
+    multiCurrentPlayerId = msg.currentPlayerId;
+    players              = msg.players;
+    currentRound         = msg.round;
+    maze                 = msg.maze;
+    gridSize             = msg.gridSize;
+    playerPos            = msg.playerPos;
+    goalPos              = msg.goalPos;
+    visited              = new Set(msg.visited);
+
+    if (roundNumber) roundNumber.textContent = msg.round;
+    if (timeLabel)   timeLabel.textContent   = msg.timerSeconds.toFixed(1);
+    timeRemaining = msg.timerSeconds;
+    updateTimer();
+
+    renderPlayers();
+    renderMaze();
+
+    const isMyTurn = msg.currentPlayerId === myPlayerId;
+    const currentPlayerData = players.find(p => p.id === msg.currentPlayerId);
+    const name = currentPlayerData ? currentPlayerData.name : 'Unknown';
+
+    if (turnIndicator) {
+        turnIndicator.textContent = isMyTurn ? 'Your turn!' : `${name} is playing`;
+    }
+    if (gameStatusMessage) gameStatusMessage.textContent = '';
+
+    gameActive = isMyTurn;
+}
+
+/**
+ * Called when any player moves in the maze.
+ * Updates the shared maze state and re-renders for all clients.
+ *
+ * @param {Object} msg - Server message with updated playerPos and visited set.
+ */
+function onPlayerMoved(msg) {
+    playerPos = msg.playerPos;
+    visited   = new Set(msg.visited);
+    players   = msg.players;
+    renderMaze();
+    renderPlayers();
+}
+
+/**
+ * Called when the active player completes the maze.
+ * Updates status and waits for the server to send the next turn_start.
+ *
+ * @param {Object} msg - Server message with completedBy name.
+ */
+function onTurnComplete(msg) {
+    console.log('Info | Turn complete by:', msg.completedBy);
+    players   = msg.players;
+    gameActive = false;
+    renderPlayers();
+
+    if (gameStatusMessage) {
+        gameStatusMessage.textContent = msg.completedBy
+            ? `${msg.completedBy} reached the exit!`
+            : '';
+    }
+}
+
+/**
+ * Called when any player is eliminated by the timer.
+ * Marks the player eliminated in the local list and re-renders.
+ *
+ * @param {Object} msg - Server message with eliminatedId and player list.
+ */
+function onPlayerEliminated(msg) {
+    console.log('Info | Player eliminated:', msg.eliminatedName);
+    players   = msg.players;
+    gameActive = false;
+    renderPlayers();
+
+    if (gameStatusMessage) {
+        if (msg.eliminatedId === myPlayerId) {
+            gameStatusMessage.textContent = 'You ran out of time!';
+        } else {
+            gameStatusMessage.textContent = msg.reason === 'disconnected'
+                ? `${msg.eliminatedName} disconnected and was eliminated.`
+                : `${msg.eliminatedName} ran out of time.`;
+        }
+    }
+}
+
+/**
+ * Called at the start of a new server-side round after an elimination.
+ *
+ * @param {Object} msg - Server message with round and playersRemaining.
+ */
+function onNextRound(msg) {
+    console.log('Info | Next round:', msg.round);
+    if (roundNumber) roundNumber.textContent = msg.round;
+    if (gameStatusMessage) gameStatusMessage.textContent = `${msg.playersRemaining} players remaining. Round ${msg.round} starting...`;
+}
+
+/**
+ * Called when the game ends with a winner.
+ * Shows result and returns to start screen after a delay.
+ *
+ * @param {Object} msg - Server message with winnerId and winnerName.
+ */
+function onGameOver(msg) {
+    console.log('Info | Game over - winner:', msg.winnerName);
+    gameActive = false;
+
+    let text;
+    if (!msg.winnerId) {
+        text = 'Game over!';
+    } else if (msg.winnerId === myPlayerId) {
+        text = 'You won the match!';
+    } else {
+        text = `${msg.winnerName} wins the match!`;
+    }
+
+    if (msg.reason) text += ` (${msg.reason})`;
+    if (gameStatusMessage) gameStatusMessage.textContent = text;
+
+    setTimeout(() => {
+        resetMultiplayerState();
+        showStartScreen();
+    }, 5000);
+}
+
+/**
+ * Called when a player leaves voluntarily during a game.
+ * Updates the player list and migrates host role if needed.
+ *
+ * @param {Object} msg - Server message with playerId, playerName, newHostId.
+ */
+function onPlayerLeft(msg) {
+    console.log('Info | Player left:', msg.playerName);
+    players = msg.players;
+    renderPlayers();
+
+    if (msg.newHostId === myPlayerId && !isHost) {
+        isHost = true;
+        console.log('Info | Host role migrated to this client');
+    }
+
+    if (gameStatusMessage) gameStatusMessage.textContent = `${msg.playerName} left the game.`;
+}
+
+/**
+ * Handles keyboard movement for multiplayer, sending move_player to the server.
+ *
+ * @param {number} dx - Delta x.
+ * @param {number} dy - Delta y.
+ */
+function handleMultiKeyDown(dx, dy) {
+    if (!gameActive) return;
+    if (multiCurrentPlayerId !== myPlayerId) return;
+    wsSend({ type: 'move_player', dx, dy });
+}
+
+/**
+ * Handles Create Session button click.
+ * Connects to the server and sends a create_session message.
+ */
+async function handleCreateSession() {
+    const name = (playerNameInput?.value || '').trim() || 'Player 1';
+    console.log('Info | Creating session as:', name);
+
+    try {
+        setMultiStatus('Connecting...');
+        await connectWebSocket();
+        wsSend({ type: 'create_session', playerName: name });
+    } catch {
+        setMultiStatus('Could not connect to multiplayer server.');
+        console.log('Error | WebSocket connection failed');
+    }
+}
+
+/**
+ * Handles Join Session button click.
+ * Connects to the server and sends a join_session message.
+ */
+async function handleJoinSession() {
+    const name = (playerNameInput?.value || '').trim() || 'Player';
+    const code = (sessionCodeInput?.value || '').trim();
+
+    if (!code || code.length !== 6) {
+        setMultiStatus('Please enter a valid 6-digit session code.');
+        return;
+    }
+
+    console.log('Info | Joining session:', code, 'as:', name);
+
+    try {
+        setMultiStatus('Connecting...');
+        await connectWebSocket();
+        wsSend({ type: 'join_session', code, playerName: name });
+    } catch {
+        setMultiStatus('Could not connect to server. Is maze.js running?');
+        console.log('Error | WebSocket connection failed');
+    }
+}
+
+/**
+ * Handles Start Game button click from the lobby host.
+ */
+function handleStartMultiplayer() {
+    if (!isHost) return;
+    if (players.length < 2) {
+        setMultiStatus('Need at least 2 players to start.');
+        console.log('Error | Not enough players to start multiplayer game');
+        return;
+    }
+    console.log('Info | Host starting multiplayer game');
+    wsSend({ type: 'start_game' });
+}
+
+/**
+ * Handles Leave Lobby button click.
+ * Sends leave message and resets to start screen.
+ */
+function handleLeaveLobby() {
+    console.log('Info | Leaving lobby');
+    wsSend({ type: 'leave_session' });
+    resetMultiplayerState();
+    showStartScreen();
+}
+
+/**
+ * Handles Leave Game button click during a multiplayer game.
+ * Sends leave message and returns to start screen.
+ */
+function handleLeaveMultiplayerGame() {
+    console.log('Info | Leaving multiplayer game');
+    wsSend({ type: 'leave_session' });
+    resetMultiplayerState();
+    showStartScreen();
 }
 
 if (singleplayerOption) singleplayerOption.addEventListener('click', () => selectGameMode('singleplayer'));
@@ -800,10 +1423,6 @@ if (multiplayerOption)  multiplayerOption.addEventListener('click',  () => selec
 
 if (startGameBtn) {
     startGameBtn.addEventListener('click', () => {
-        if (selectedMode !== 'singleplayer') {
-            if (startStatusMessage) startStatusMessage.textContent = 'Multiplayer coming soon.';
-            return;
-        }
         if (startGameBtn.classList.contains('enabled')) startGame();
     });
 }
@@ -814,5 +1433,42 @@ window.addEventListener('keydown', handleKeyDown);
 
 aiCountBtns.forEach(btn => btn.addEventListener('click', () => selectAICount(parseInt(btn.dataset.count))));
 difficultyBtns.forEach(btn => btn.addEventListener('click', () => selectDifficulty(btn.dataset.difficulty || btn.value)));
+
+if (createSessionBtn) createSessionBtn.addEventListener('click', handleCreateSession);
+if (joinSessionBtn)   joinSessionBtn.addEventListener('click', handleJoinSession);
+if (startMultiBtn)    startMultiBtn.addEventListener('click', handleStartMultiplayer);
+if (leaveLobbyBtn)    leaveLobbyBtn.addEventListener('click', handleLeaveLobby);
+
+if (copyCodeBtn) {
+    copyCodeBtn.addEventListener('click', async () => {
+        const code = (lobbyCodeDisplay?.textContent || '').trim();
+        if (!code || code === '------') {
+            setMultiStatus('No session code to copy yet.');
+            return;
+        }
+
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(code);
+            } else {
+                const tempInput = document.createElement('input');
+                tempInput.value = code;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+            }
+            setMultiStatus('Session code copied to clipboard.');
+        } catch {
+            setMultiStatus('Unable to copy. Please select and copy manually.');
+        }
+    });
+}
+
+if (sessionCodeInput) {
+    sessionCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleJoinSession();
+    });
+}
 
 showStartScreen();
