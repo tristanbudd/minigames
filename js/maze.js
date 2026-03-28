@@ -456,6 +456,8 @@ function handleCellClick(event) {
  * @param {KeyboardEvent} event - Keydown event.
  */
 function handleKeyDown(event) {
+    if (gameScreen.style.display === 'none') return;
+
     const map = {
         arrowup: [0, -1], w: [0, -1],
         arrowdown: [0, 1], s: [0, 1],
