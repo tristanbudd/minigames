@@ -152,17 +152,17 @@
         <!-- Start Screen (shown initially) -->
         <section id="start-screen" class="start-screen">
             <div class="game-mode-selector">
-                <div id="singleplayer-option" class="mode-option selected" tabindex="0" role="button">
+                <div id="singleplayer-option" class="mode-option" tabindex="0" role="button">
                     <div class="mode-title">Singleplayer</div>
                     <div class="mode-description">Play against AI opponents</div>
                 </div>
-                <div id="multiplayer-option" class="mode-option disabled" tabindex="-1" role="button" aria-disabled="true">
+                <div id="multiplayer-option" class="mode-option" tabindex="0" role="button">
                     <div class="mode-title">Multiplayer</div>
-                    <div class="mode-description">Coming soon</div>
+                    <div class="mode-description">Play with friends online</div>
                 </div>
             </div>
 
-            <div id="ai-selector" class="ai-selector visible">
+            <div id="ai-selector" class="ai-selector">
                 <div class="ai-count-label">Number of AI opponents:</div>
                 <div class="ai-count-options">
                     <button class="ai-count-btn" data-count="1">1</button>
@@ -172,7 +172,7 @@
                 </div>
             </div>
 
-            <div id="difficulty-selector" class="difficulty-selector visible">
+            <div id="difficulty-selector" class="difficulty-selector">
                 <div class="difficulty-label">Difficulty:</div>
                 <div class="difficulty-options">
                     <button class="difficulty-btn" data-difficulty="easy">Easy</button>
@@ -181,8 +181,66 @@
                 </div>
             </div>
 
+            <!-- Multiplayer setup panel (hidden until multiplayer selected) -->
+            <div id="multiplayer-setup" class="multiplayer-setup" style="display: none;" aria-label="Multiplayer setup">
+                <div class="multi-name-row">
+                    <label for="player-name-input" class="multi-label" style="display:block;margin-bottom:0.5rem;">Your name:</label>
+                    <input type="text"
+                           id="player-name-input"
+                           class="multi-input"
+                           placeholder="Player 1"
+                           maxlength="16"
+                           autocomplete="off"
+                           autocorrect="off"
+                           autocapitalize="off"
+                           spellcheck="false"
+                           style="display:block;width:100%;margin-bottom:1rem;">
+                </div>
+
+                <div class="multi-actions">
+                    <button id="create-session-btn" class="game-button" type="button" style="width:100%;margin-bottom:1rem;">Create Session</button>
+
+                    <div class="multi-join-row">
+                        <input type="text"
+                               id="session-code-input"
+                               class="multi-input code-input"
+                               placeholder="000000"
+                               maxlength="6"
+                               pattern="[0-9]{6}"
+                               inputmode="numeric"
+                               autocomplete="off"
+                               aria-label="6-digit session code"
+                               style="display:block;width:100%;margin-bottom:1rem;">
+                        <button id="join-session-btn" class="game-button" type="button" style="width:100%;">Join Session</button>
+                    </div>
+                </div>
+
+                <p id="multi-status-msg" class="multi-status-msg" aria-live="polite"></p>
+            </div>
+
             <p id="start-status-message" class="status-message"></p>
-            <button id="start-game-btn" class="game-button start-button enabled" type="button">Start Game</button>
+            <button id="start-game-btn" class="game-button start-button" type="button">Start Game</button>
+        </section>
+
+        <!-- Lobby Screen (multiplayer only, hidden initially) -->
+        <section id="lobby-screen" class="lobby-screen" style="display: none;" aria-label="Game lobby">
+            <div class="lobby-header">
+                <h3 class="lobby-title">Game Lobby</h3>
+                <div class="lobby-code-wrapper">
+                    <span class="lobby-code-label">Session code:</span>
+                    <span id="lobby-code-display" class="lobby-code-display" aria-label="Session code">------</span>
+                    <button id="copy-code-btn" class="copy-code-btn" type="button" aria-label="Copy session code">Copy</button>
+                </div>
+                <p class="lobby-hint">Share this code with friends to let them join.</p>
+                <p id="lobby-status-msg" class="multi-status-msg" aria-live="polite"></p>
+            </div>
+
+            <ul id="lobby-players-list" class="lobby-players-list" role="list" aria-label="Players in lobby"></ul>
+
+            <div class="lobby-controls">
+                <button id="start-multi-btn" class="game-button" type="button" style="display: none;">Start Game</button>
+                <button id="leave-lobby-btn" class="game-button secondary" type="button">Leave Lobby</button>
+            </div>
         </section>
 
         <!-- Game Screen (hidden initially) -->
