@@ -1,40 +1,10 @@
 /* Maze Run Styles */
 :root {
-  --game-section-gap: 0.75rem;
+  --game-container-max-width: 900px;
   --maze-cell-size: 28px;
 }
 
-.game-container {
-  max-width: 900px;
-  margin: 2rem auto;
-  padding: 0 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  box-sizing: border-box;
-}
-
-.game-header {
-  text-align: center;
-  border-bottom: none;
-  z-index: 1;
-}
-
-.game-header h2 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin: 0 0 0.25rem 0;
-}
-
 /* Game: Maze Run */
-.start-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  text-align: center;
-}
-
 .ai-selector,
 .difficulty-selector {
   display: none;
@@ -101,199 +71,6 @@
 }
 
 /* Multiplayer Styling */
-.multiplayer-setup {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 360px;
-  padding: 1.25rem;
-  border: 0.2rem solid #000000;
-  border-radius: 0.5rem;
-  background-color: #fefefe;
-  box-sizing: border-box;
-}
-
-.multi-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #000000;
-  white-space: nowrap;
-}
-
-.multi-name-row {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  width: 100%;
-}
-
-.multi-input {
-  flex: 1;
-  padding: 0.4rem 0.625rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border: 0.2rem solid #000000;
-  border-radius: 0.5rem;
-  background-color: #fefefe;
-  font-family: "Quantico", sans-serif;
-  box-sizing: border-box;
-}
-
-.multi-input:focus {
-  outline: none;
-  box-shadow: 0 0 0.4rem rgba(0, 0, 0, 0.3);
-}
-
-.multi-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.625rem;
-  width: 100%;
-}
-
-.multi-join-row {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-  width: 100%;
-}
-
-.code-input {
-  text-align: center;
-  letter-spacing: 0.15rem;
-  font-size: 1rem;
-}
-
-.multi-status-msg {
-  display: none;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #666666;
-  text-align: center;
-  min-height: 1.25rem;
-  margin: 0;
-}
-
-.lobby-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  max-width: 420px;
-  margin: 0 auto;
-}
-
-.lobby-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.375rem;
-  text-align: center;
-}
-
-.lobby-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-}
-
-.lobby-code-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-top: 0.2rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.lobby-code-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #666666;
-}
-
-.lobby-code-display {
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: 0.3rem;
-  border: 0.2rem solid #000000;
-  border-radius: 0.5rem;
-  padding: 0.2rem 0.75rem;
-  background-color: #f8f9fa;
-  font-family: "Courier New", monospace;
-  user-select: all;
-  cursor: text;
-}
-
-.copy-code-btn {
-  padding: 0.35rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border: 0.2rem solid #000000;
-  border-radius: 0.4rem;
-  background-color: #000000;
-  color: #fefefe;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.05rem;
-}
-
-.copy-code-btn:hover {
-  background-color: #fefefe;
-  color: #000000;
-}
-
-.lobby-hint {
-  font-size: 0.75rem;
-  color: #888888;
-  margin: 0;
-}
-
-.lobby-players-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.lobby-player-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.875rem;
-  border: 0.15rem solid #000000;
-  border-radius: 0.5rem;
-  background-color: #fefefe;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.lobby-host-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05rem;
-  background-color: #000000;
-  color: #fefefe;
-  border-radius: 0.3rem;
-  padding: 0.15rem 0.4rem;
-}
-
-.lobby-controls {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
 /* Round Info */
 .round-info {
   display: flex;
@@ -365,7 +142,9 @@
   height: var(--maze-cell-size);
   background-color: #fefefe;
   border-radius: 0.2rem;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .maze-cell.wall {
@@ -645,16 +424,6 @@
 }
 
 @media (max-width: 768px) {
-  .game-container {
-    margin: 1.5rem auto;
-    gap: 1.25rem;
-    padding: 0 1rem;
-  }
-
-  .game-header h2 {
-    font-size: 1.4rem;
-  }
-
   .round-info {
     gap: 1.25rem;
     padding: 0.625rem;
@@ -691,36 +460,6 @@
     align-items: center;
   }
 
-  .multiplayer-setup {
-    max-width: 100%;
-    padding: 1rem;
-  }
-
-  .multi-join-row {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .lobby-code-display {
-    font-size: 1.3rem;
-    letter-spacing: 0.2rem;
-    padding: 0.2rem 0.625rem;
-  }
-
-  .copy-code-btn {
-    width: 100%;
-    max-width: 180px;
-    justify-content: center;
-  }
-
-  .lobby-controls {
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 260px;
-  }
-
   .game-controls .game-button {
     width: auto;
     min-width: 180px;
@@ -731,15 +470,5 @@
 @media (max-width: 480px) {
   :root {
     --maze-cell-size: 18px;
-  }
-
-  .game-container {
-    margin: 0.75rem auto;
-    gap: 1rem;
-    padding: 0 0.75rem;
-  }
-
-  .game-header h2 {
-    font-size: 1.25rem;
   }
 }
