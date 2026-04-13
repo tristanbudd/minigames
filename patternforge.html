@@ -130,7 +130,7 @@
         <section class="game-container" aria-labelledby="game-title">
             <header class="game-header">
                 <h2 id="game-title">Pattern Forge</h2>
-                <p class="game-description" style="border-bottom: #000000 0.2rem solid">Draw the exact generated pattern before time expires. One mistake resets your run.</p>
+                <p class="game-description" style="border-bottom: #000000 0.2rem solid">Draw the generated pattern before time expires.</p>
             </header>
 
             <section id="start-screen" class="start-screen">
@@ -167,14 +167,81 @@
                 <div id="length-selector" class="length-selector">
                     <div class="length-label">Game Length:</div>
                     <div class="length-options">
-                        <button class="length-btn" data-length="short">Short (2m)</button>
+                        <button class="length-btn" data-length="short">Short (1m)</button>
                         <button class="length-btn selected" data-length="medium">Medium (3m)</button>
                         <button class="length-btn" data-length="long">Long (5m)</button>
                     </div>
                 </div>
 
+                <!-- Multiplayer setup panel (hidden until multiplayer selected) -->
+                <div id="multiplayer-setup" class="multiplayer-setup" style="display: none;" aria-label="Multiplayer setup">
+                    <div class="multi-name-row">
+                        <label for="player-name-input" class="multi-label" style="display:block;margin-bottom:0.5rem;">Your name:</label>
+                        <input type="text"
+                               id="player-name-input"
+                               class="multi-input"
+                               placeholder="Player 1"
+                               maxlength="16"
+                               autocomplete="off"
+                               autocorrect="off"
+                               autocapitalize="off"
+                               spellcheck="false"
+                               style="display:block;width:100%;margin-bottom:1rem;">
+                    </div>
+
+                    <div class="multi-actions">
+                        <button id="create-session-btn" class="game-button" type="button" style="width:100%;margin-bottom:1rem;">Create Session</button>
+
+                        <div class="multi-join-row">
+                            <input type="text"
+                                   id="session-code-input"
+                                   class="multi-input code-input"
+                                   placeholder="000000"
+                                   maxlength="6"
+                                   pattern="[0-9]{6}"
+                                   inputmode="numeric"
+                                   autocomplete="off"
+                                   aria-label="6-digit session code"
+                                   style="display:block;width:100%;margin-bottom:1rem;">
+                            <button id="join-session-btn" class="game-button" type="button" style="width:100%;">Join Session</button>
+                        </div>
+                    </div>
+
+                    <p id="multi-status-msg" class="multi-status-msg" aria-live="polite"></p>
+                </div>
+
                 <p id="start-status-message" class="status-message"></p>
                 <button id="start-game-btn" class="game-button start-button" type="button">Start Game</button>
+            </section>
+
+            <!-- Lobby Screen (multiplayer only, hidden initially) -->
+            <section id="lobby-screen" class="lobby-screen" style="display: none;" aria-label="Game lobby">
+                <div class="lobby-header">
+                    <h3 class="lobby-title">Game Lobby</h3>
+                    <div class="lobby-code-wrapper">
+                        <span class="lobby-code-label">Session code:</span>
+                        <span id="lobby-code-display" class="lobby-code-display" aria-label="Session code">------</span>
+                        <button id="copy-code-btn" class="copy-code-btn" type="button" aria-label="Copy session code">Copy</button>
+                    </div>
+                    <p class="lobby-hint">Share this code with friends to let them join.</p>
+                    <p id="lobby-status-msg" class="multi-status-msg" aria-live="polite"></p>
+                </div>
+
+                <div id="lobby-length-selector" class="length-selector" style="display: none;">
+                    <div class="length-label">Game Length:</div>
+                    <div class="length-options">
+                        <button class="length-btn" data-length="short">Short (1m)</button>
+                        <button class="length-btn selected" data-length="medium">Medium (3m)</button>
+                        <button class="length-btn" data-length="long">Long (5m)</button>
+                    </div>
+                </div>
+
+                <ul id="lobby-players-list" class="lobby-players-list" role="list" aria-label="Players in lobby"></ul>
+
+                <div class="lobby-controls">
+                    <button id="start-multi-btn" class="game-button" type="button" style="display: none;">Start Game</button>
+                    <button id="leave-lobby-btn" class="game-button secondary" type="button">Leave Lobby</button>
+                </div>
             </section>
 
             <section id="game-screen" class="game-screen" style="display: none;">

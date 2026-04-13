@@ -30,6 +30,21 @@ const multiplayerOption = document.querySelector('#multiplayer-option');
 const aiSelector = document.querySelector('#ai-selector');
 const difficultySelector = document.querySelector('#difficulty-selector');
 const lengthSelector = document.querySelector('#length-selector');
+const multiplayerSetup = document.querySelector('#multiplayer-setup');
+const playerNameInput = document.querySelector('#player-name-input');
+const sessionCodeInput = document.querySelector('#session-code-input');
+const createSessionBtn = document.querySelector('#create-session-btn');
+const joinSessionBtn = document.querySelector('#join-session-btn');
+const lobbyScreen = document.querySelector('#lobby-screen');
+const lobbyCodeDisplay = document.querySelector('#lobby-code-display');
+const lobbyPlayersList = document.querySelector('#lobby-players-list');
+const lobbyStatusMsg = document.querySelector('#lobby-status-msg');
+const lobbyLengthSelector = document.querySelector('#lobby-length-selector');
+const lobbyLengthBtns = document.querySelectorAll('#lobby-length-selector .length-btn');
+const copyCodeBtn = document.querySelector('#copy-code-btn');
+const startMultiBtn = document.querySelector('#start-multi-btn');
+const leaveLobbyBtn = document.querySelector('#leave-lobby-btn');
+const multiStatusMsg = document.querySelector('#multi-status-msg');
 
 /* Match configuration */
 const BASE_GRID_SIZE = 3;
@@ -37,7 +52,7 @@ const MAX_GRID_SIZE = 8;
 const ROUNDS_PER_GRID_INCREASE = 3;
 const PREVIEW_MS = 1400;
 const LENGTH_MINUTES = {
-  short: 2,
+  short: 1,
   medium: 3,
   long: 5
 };
@@ -54,26 +69,48 @@ let selectedAICount = 2;
 let selectedDifficulty = 'medium';
 let selectedLength = 'medium';
 let selectedMode = null;
+let isHost = false;
 let players = [];
 let currentTurnIndex = 0;
 let currentTurnNumber = 1;
 let scoreEffect = null;
 let gameStartTime = 0;
 let gameDurationMs = 0;
+let ws = null;
+let multiplayerSessionCode = '';
+let multiplayerPlayerId = '';
+let multiplayerHostId = '';
+let summaryStandings = null;
+let summaryWinnerText = '';
 
 /**
  * Resets the UI to the start screen and clears transient state.
  */
 function showStartScreen() {
   clearInterval(timerInterval);
+  disconnectMultiplayerSession();
   startScreen.style.display = 'flex';
   gameScreen.style.display = 'none';
   if (summaryScreen) {
     summaryScreen.style.display = 'none';
   }
+  if (lobbyScreen) {
+    lobbyScreen.style.display = 'none';
+  }
+  if (lobbyLengthSelector) {
+    lobbyLengthSelector.style.display = 'none';
+  }
+  if (multiplayerSetup) {
+    multiplayerSetup.style.display = 'none';
+  }
   startStatusMessage.textContent = '';
   gameStatusMessage.textContent = '';
+  if (multiStatusMsg) {
+    multiStatusMsg.textContent = '';
+    multiStatusMsg.style.display = 'none';
+  }
   selectedMode = null;
+  isHost = false;
   singleplayerOption.classList.remove('selected');
   if (multiplayerOption) {
     multiplayerOption.classList.remove('selected');
@@ -94,6 +131,24 @@ function showStartScreen() {
 function updateStartButton() {
   const readyForSingle = selectedMode === 'singleplayer' && selectedAICount > 0 && !!selectedDifficulty && !!selectedLength;
   startGameBtn.classList.toggle('enabled', readyForSingle);
+  startGameBtn.style.display = selectedMode === 'multiplayer' ? 'none' : '';
+}
+
+/**
+ * Updates the selected match length across all visible length buttons.
+ *
+ * @param {string} nextLength - The selected length key.
+ */
+function syncLengthSelection(nextLength) {
+  selectedLength = nextLength;
+
+  lengthBtns.forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.length === selectedLength);
+  });
+
+  lobbyLengthBtns.forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.length === selectedLength);
+  });
 }
 
 /**
@@ -493,6 +548,13 @@ function renderGrid(gridElement, size, isInteractive) {
         const idx = Number(cell.dataset.cellIndex);
         drawPattern[idx] = !drawPattern[idx];
         cell.classList.toggle('filled', drawPattern[idx]);
+
+        if (selectedMode === 'multiplayer') {
+          sendMultiplayerMessage({
+            type: 'pattern_draft',
+            pattern: drawPattern,
+          });
+        }
       });
     }
 
@@ -538,11 +600,43 @@ function markPlayerDifferences() {
 }
 
 /**
+ * Renders a submitted pattern and marks the correct and incorrect cells.
+ *
+ * @param {boolean[]} submittedPattern - The pattern that was submitted.
+ */
+function showPatternEvaluation(submittedPattern) {
+  const cells = drawGrid.querySelectorAll('.pattern-cell');
+
+  for (let i = 0; i < cells.length; i++) {
+    cells[i].classList.remove('filled', 'preview', 'player-correct', 'player-wrong', 'ai-attempt');
+
+    if (submittedPattern[i]) {
+      cells[i].classList.add('filled');
+    }
+
+    if (submittedPattern[i] === targetPattern[i]) {
+      if (submittedPattern[i]) {
+        cells[i].classList.add('player-correct');
+      }
+    } else {
+      cells[i].classList.add('player-wrong');
+    }
+  }
+}
+
+/**
  * Clears the player's drawing board.
  */
 function resetDrawBoard() {
   drawPattern = buildEmptyPattern(gridSize);
   paintPattern(drawGrid, drawPattern, 'filled');
+
+  if (selectedMode === 'multiplayer') {
+    sendMultiplayerMessage({
+      type: 'pattern_draft',
+      pattern: drawPattern,
+    });
+  }
 }
 
 /**
@@ -652,8 +746,8 @@ function getWinnerSummary() {
 function renderSummary() {
   if (!summaryList || !summaryWinner) return;
 
-  const standings = [...players].sort((a, b) => b.points - a.points);
-  summaryWinner.textContent = getWinnerSummary();
+  const standings = summaryStandings ? summaryStandings : [...players].sort((a, b) => b.points - a.points);
+  summaryWinner.textContent = summaryWinnerText || getWinnerSummary();
   summaryList.innerHTML = '';
 
   standings.forEach((player, index) => {
@@ -846,6 +940,494 @@ function beginRound() {
   }, PREVIEW_MS);
 }
 
+function getPatternForgeWsUrl() {
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'ws://localhost:8083';
+  }
+
+  return 'wss://api.tristanbudd.com/minigames/patternforge';
+}
+
+function sendMultiplayerMessage(payload) {
+  if (!ws) {
+    return false;
+  }
+
+  if (ws.readyState === WebSocket.CONNECTING) {
+    ws.addEventListener('open', function() {
+      try {
+        ws.send(JSON.stringify(payload));
+      } catch {
+        void 0;
+      }
+    }, { once: true });
+    return true;
+  }
+
+  if (ws.readyState !== WebSocket.OPEN) {
+    return false;
+  }
+
+  ws.send(JSON.stringify(payload));
+  return true;
+}
+
+function disconnectMultiplayerSession() {
+  if (ws) {
+    try {
+      sendMultiplayerMessage({ type: 'leave_session' });
+    } catch (error) {
+      void error;
+    }
+
+    ws.close();
+    ws = null;
+  }
+
+  multiplayerSessionCode = '';
+  multiplayerPlayerId = '';
+  multiplayerHostId = '';
+  isHost = false;
+  summaryStandings = null;
+  summaryWinnerText = '';
+}
+
+function ensureMultiplayerSocket() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return ws;
+  }
+
+  ws = new WebSocket(getPatternForgeWsUrl());
+
+  ws.addEventListener('message', function(event) {
+    let msg;
+
+    try {
+      msg = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+
+    handleMultiplayerMessage(msg);
+  });
+
+  ws.addEventListener('close', function() {
+    if (selectedMode === 'multiplayer' && lobbyScreen && lobbyScreen.style.display === 'flex') {
+      setMultiStatus('Disconnected from the session.');
+    }
+  });
+
+  ws.addEventListener('error', function() {
+    setMultiStatus('Unable to connect to the multiplayer server.');
+  });
+
+  return ws;
+}
+
+function showLobbyScreen(code, playerList) {
+  startScreen.style.display = 'none';
+  gameScreen.style.display = 'none';
+  if (summaryScreen) {
+    summaryScreen.style.display = 'none';
+  }
+  if (lobbyScreen) {
+    lobbyScreen.style.display = 'flex';
+  }
+
+  renderCurrentLobbyCode(code);
+
+  renderLobbyPlayers(playerList || []);
+}
+
+function renderLobbyPlayers(playersFromServer) {
+  if (!lobbyPlayersList) {
+    return;
+  }
+
+  lobbyPlayersList.innerHTML = '';
+
+  playersFromServer.forEach(player => {
+    const li = document.createElement('li');
+    li.className = 'lobby-player-item';
+
+    const name = document.createElement('span');
+    name.textContent = player.name;
+    li.appendChild(name);
+
+    if (player.isHost) {
+      const badge = document.createElement('span');
+      badge.className = 'lobby-host-badge';
+      badge.textContent = 'Host';
+      li.appendChild(badge);
+    }
+
+    lobbyPlayersList.appendChild(li);
+  });
+}
+
+/**
+ * Sets multiplayer status text.
+ *
+ * @param {string} text - Status text.
+ */
+function setMultiStatus(text) {
+  if (multiStatusMsg) {
+    multiStatusMsg.textContent = text;
+    multiStatusMsg.style.display = text ? 'block' : 'none';
+  }
+
+  if (lobbyStatusMsg) {
+    lobbyStatusMsg.textContent = text;
+    lobbyStatusMsg.style.display = text ? 'block' : 'none';
+  }
+}
+
+function syncPlayersFromServer(playersFromServer) {
+  players = playersFromServer.map(player => ({
+    id: player.id,
+    name: player.name,
+    points: Number(player.points) || 0,
+    isAI: false,
+    isHost: !!player.isHost,
+  }));
+
+  multiplayerHostId = players.find(player => player.isHost)?.id || multiplayerHostId;
+}
+
+function renderCurrentLobbyCode(code) {
+  multiplayerSessionCode = code || '';
+
+  if (lobbyCodeDisplay) {
+    lobbyCodeDisplay.textContent = code || '------';
+  }
+
+  if (sessionCodeInput && code) {
+    sessionCodeInput.value = code;
+  }
+}
+
+function updateLobbyButtons() {
+  const isHost = multiplayerPlayerId === multiplayerHostId;
+
+  if (startMultiBtn) {
+    startMultiBtn.style.display = isHost ? '' : 'none';
+    startMultiBtn.disabled = !isHost || players.length < 2;
+  }
+
+  if (lobbyLengthSelector) {
+    lobbyLengthSelector.style.display = isHost ? 'flex' : 'none';
+  }
+
+  lobbyLengthBtns.forEach(btn => {
+    btn.disabled = !isHost;
+  });
+}
+
+/**
+ * Returns whether the given length button belongs to the lobby controls.
+ *
+ * @param {HTMLElement} button - The button to inspect.
+ * @returns {boolean} True when the button is in the multiplayer lobby.
+ */
+function isLobbyLengthButton(button) {
+  return !!button.closest('#lobby-length-selector');
+}
+
+/**
+ * Returns whether the local player can control lobby options.
+ *
+ * @returns {boolean} True when the current player is the host.
+ */
+function canEditLobbyOptions() {
+  return multiplayerPlayerId === multiplayerHostId;
+}
+
+/**
+ * Sends a lobby length update to the server when the host changes it.
+ *
+ * @param {string} nextLength - The selected length key.
+ */
+function updateLobbyLength(nextLength) {
+  if (!canEditLobbyOptions()) {
+    return;
+  }
+
+  sendMultiplayerMessage({
+    type: 'set_lobby_length',
+    length: nextLength,
+  });
+}
+
+function beginMultiplayerTurn(turnData) {
+  currentRound = turnData.round;
+  gridSize = turnData.gridSize;
+  targetPattern = Array.isArray(turnData.pattern) ? turnData.pattern.map(Boolean) : buildEmptyPattern(gridSize);
+  drawPattern = buildEmptyPattern(gridSize);
+  timeRemaining = Number(turnData.timerSeconds) || getRoundTime(currentRound);
+  currentTurnIndex = Math.max(0, players.findIndex(player => player.id === turnData.currentPlayerId));
+
+  updateHud();
+  updateTimerVisual();
+  renderPlayers(turnData.currentPlayerId);
+  renderGrid(drawGrid, gridSize, true);
+  setGridEnabled(false);
+  paintPattern(drawGrid, targetPattern, 'preview');
+
+  if (gameScreen) {
+    gameScreen.style.display = 'block';
+  }
+  if (lobbyScreen) {
+    lobbyScreen.style.display = 'none';
+  }
+
+  gameStatusMessage.textContent = 'Memorize the pattern...';
+  isRoundActive = false;
+
+  setTimeout(() => {
+    drawGrid.querySelectorAll('.pattern-cell').forEach(cell => {
+      cell.classList.remove('preview');
+    });
+
+    if (turnData.currentPlayerId === multiplayerPlayerId) {
+      resetDrawBoard();
+      setGridEnabled(true);
+      gameStatusMessage.textContent = 'Draw the pattern and submit before time runs out.';
+      isRoundActive = true;
+    } else {
+      setGridEnabled(false);
+      gameStatusMessage.textContent = 'Waiting for the active player...';
+    }
+  }, PREVIEW_MS);
+}
+
+function handleMultiplayerTurnResult(msg) {
+  syncPlayersFromServer(msg.players || []);
+  renderPlayers(msg.playerId);
+  renderLobbyPlayers(msg.players || []);
+
+  const submittedPattern = Array.isArray(msg.submittedPattern) ? msg.submittedPattern.map(Boolean) : drawPattern.slice();
+  drawPattern = submittedPattern;
+  showPatternEvaluation(submittedPattern);
+
+  setGridEnabled(false);
+
+  const points = Number(msg.points) || 0;
+  const accuracy = Number(msg.accuracy) || 0;
+  const suffix = msg.isTimeout ? ' (timeout)' : '';
+  gameStatusMessage.textContent = `${msg.playerName}: ${points} pts (${(accuracy * 100).toFixed(1)}% accurate)${suffix}.`;
+
+  setTimeout(() => {
+    scoreEffect = null;
+    renderPlayers(msg.playerId);
+  }, 900);
+}
+
+function handleMultiplayerGameOver(msg) {
+  summaryStandings = Array.isArray(msg.standings) ? msg.standings : null;
+  if (msg.winnerName) {
+    summaryWinnerText = msg.reason ? `${msg.winnerName} wins. ${msg.reason}` : `${msg.winnerName} wins.`;
+  } else {
+    summaryWinnerText = msg.reason || 'Match ended.';
+  }
+  showSummaryScreen();
+}
+
+function handleMultiplayerLobbyState(msg) {
+  syncPlayersFromServer(msg.players || []);
+  multiplayerHostId = msg.hostId || multiplayerHostId;
+  showLobbyScreen(msg.code || multiplayerSessionCode, msg.players || []);
+  syncLengthSelection(msg.length || selectedLength);
+  isHost = multiplayerHostId === multiplayerPlayerId;
+  updateLobbyButtons();
+  if (startMultiBtn) {
+    startMultiBtn.style.display = isHost ? '' : 'none';
+    startMultiBtn.disabled = !isHost || (msg.players || []).length < 2;
+  }
+
+  if (isHost) {
+    setMultiStatus((msg.players || []).length < 2 ? 'Need at least 2 players to start.' : 'Ready to start!');
+  } else {
+    setMultiStatus('Waiting for host to start...');
+  }
+}
+
+function handleMultiplayerSessionCreated(msg) {
+  multiplayerPlayerId = msg.playerId || multiplayerPlayerId;
+  multiplayerHostId = msg.hostId || msg.playerId || multiplayerHostId;
+  syncPlayersFromServer(msg.players || []);
+  showLobbyScreen(msg.code, msg.players || []);
+  syncLengthSelection(msg.length || selectedLength);
+  summaryStandings = null;
+  summaryWinnerText = '';
+  isHost = true;
+  updateLobbyButtons();
+  if (startMultiBtn) {
+    startMultiBtn.style.display = '';
+    startMultiBtn.disabled = (msg.players || []).length < 2;
+  }
+  setMultiStatus('Waiting for players to join...');
+}
+
+function handleMultiplayerSessionJoined(msg) {
+  multiplayerPlayerId = msg.playerId || multiplayerPlayerId;
+  multiplayerHostId = msg.hostId || multiplayerHostId;
+  syncPlayersFromServer(msg.players || []);
+  showLobbyScreen(msg.code, msg.players || []);
+  syncLengthSelection(msg.length || selectedLength);
+  summaryStandings = null;
+  summaryWinnerText = '';
+  isHost = multiplayerHostId === multiplayerPlayerId;
+  updateLobbyButtons();
+  if (startMultiBtn) {
+    startMultiBtn.style.display = isHost ? '' : 'none';
+    startMultiBtn.disabled = !isHost || (msg.players || []).length < 2;
+  }
+  setMultiStatus(isHost ? 'Waiting for players...' : 'Waiting for host to start...');
+}
+
+function handleMultiplayerMessage(msg) {
+  switch (msg.type) {
+    case 'connected':
+      multiplayerPlayerId = msg.playerId || multiplayerPlayerId;
+      break;
+    case 'session_created':
+      handleMultiplayerSessionCreated(msg);
+      break;
+    case 'session_joined':
+      handleMultiplayerSessionJoined(msg);
+      break;
+    case 'lobby_state':
+      handleMultiplayerLobbyState(msg);
+      break;
+    case 'game_started':
+      multiplayerHostId = multiplayerHostId || msg.players?.find(player => player.isHost)?.id || multiplayerHostId;
+      gameStartTime = Number(msg.startTime) || Date.now();
+      gameDurationMs = Number(msg.gameDurationMs) || gameDurationMs;
+      syncLengthSelection(msg.length || selectedLength);
+      currentRound = Number(msg.round) || 1;
+      syncPlayersFromServer(msg.players || []);
+      renderPlayers(multiplayerPlayerId);
+      updateHud();
+      setMultiStatus('');
+      showGameScreen();
+      break;
+    case 'turn_start':
+      syncPlayersFromServer(msg.players || []);
+      beginMultiplayerTurn(msg);
+      break;
+    case 'timer_tick':
+      timeRemaining = Number(msg.timeRemaining) || 0;
+      updateTimerVisual();
+      updateHud();
+      break;
+    case 'turn_result':
+      handleMultiplayerTurnResult(msg);
+      break;
+    case 'next_round':
+      currentRound = Number(msg.round) || currentRound;
+      updateHud();
+      break;
+    case 'player_left':
+      syncPlayersFromServer(msg.players || []);
+      multiplayerHostId = msg.newHostId || multiplayerHostId;
+      renderLobbyPlayers(msg.players || []);
+      updateLobbyButtons();
+      break;
+    case 'game_over':
+      handleMultiplayerGameOver(msg);
+      break;
+    case 'error':
+      setMultiStatus(msg.message || 'Something went wrong.');
+      break;
+    default:
+      break;
+  }
+}
+
+function startMultiplayerSession() {
+  setMultiStatus('Connecting...');
+  if (!ensureMultiplayerSocket()) {
+    return;
+  }
+
+  const playerName = playerNameInput ? playerNameInput.value.trim() : '';
+  sendMultiplayerMessage({
+    type: 'create_session',
+    playerName: playerName || 'Player 1',
+  });
+}
+
+function joinMultiplayerSession() {
+  setMultiStatus('Connecting...');
+  if (!ensureMultiplayerSocket()) {
+    return;
+  }
+
+  const code = sessionCodeInput ? sessionCodeInput.value.trim() : '';
+  if (!code || code.length !== 6) {
+    setMultiStatus('Enter a 6-digit session code.');
+    return;
+  }
+
+  const playerName = playerNameInput ? playerNameInput.value.trim() : '';
+  sendMultiplayerMessage({
+    type: 'join_session',
+    code,
+    playerName: playerName || 'Player',
+  });
+}
+
+function copyLobbyCode() {
+  if (!multiplayerSessionCode) {
+    setMultiStatus('No session code to copy yet.');
+    return;
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(multiplayerSessionCode)
+      .then(() => {
+        setMultiStatus('Session code copied to clipboard.');
+      })
+      .catch(() => {
+        setMultiStatus('Unable to copy automatically. Please copy the code manually.');
+      });
+    return;
+  }
+
+  const tempInput = document.createElement('input');
+  tempInput.value = multiplayerSessionCode;
+  document.body.appendChild(tempInput);
+  tempInput.select();
+
+  try {
+    const copied = document.execCommand('copy');
+    setMultiStatus(copied ? 'Session code copied to clipboard.' : 'Unable to copy automatically. Please copy the code manually.');
+  } catch {
+    setMultiStatus('Unable to copy automatically. Please copy the code manually.');
+  } finally {
+    document.body.removeChild(tempInput);
+  }
+}
+
+function submitLocalPattern() {
+  if (selectedMode === 'multiplayer') {
+    if (!isRoundActive) {
+      return;
+    }
+
+    isRoundActive = false;
+    setGridEnabled(false);
+    sendMultiplayerMessage({
+      type: 'submit_pattern',
+      pattern: drawPattern,
+    });
+    return;
+  }
+
+  completeRound(false);
+}
+
 /* Event listeners */
 startGameBtn.addEventListener('click', function() {
   if (selectedMode !== 'singleplayer') {
@@ -863,6 +1445,11 @@ leaveGameBtn.addEventListener('click', function() {
 
 if (summaryReplayBtn) {
   summaryReplayBtn.addEventListener('click', function() {
+    if (selectedMode === 'multiplayer') {
+      showStartScreen();
+      return;
+    }
+
     resetRunState();
     showGameScreen();
     beginRound();
@@ -878,7 +1465,7 @@ if (summaryMenuBtn) {
 checkPatternBtn.addEventListener('click', function() {
   if (!isRoundActive) return;
 
-  completeRound(false);
+  submitLocalPattern();
 });
 
 clearPatternBtn.addEventListener('click', function() {
@@ -886,6 +1473,41 @@ clearPatternBtn.addEventListener('click', function() {
 
   resetDrawBoard();
 });
+
+if (createSessionBtn) {
+  createSessionBtn.addEventListener('click', function() {
+    selectedMode = 'multiplayer';
+    startMultiplayerSession();
+  });
+}
+
+if (joinSessionBtn) {
+  joinSessionBtn.addEventListener('click', function() {
+    selectedMode = 'multiplayer';
+    joinMultiplayerSession();
+  });
+}
+
+if (copyCodeBtn) {
+  copyCodeBtn.addEventListener('click', function() {
+    copyLobbyCode();
+  });
+}
+
+if (startMultiBtn) {
+  startMultiBtn.addEventListener('click', function() {
+    sendMultiplayerMessage({
+      type: 'start_game',
+      length: selectedLength,
+    });
+  });
+}
+
+if (leaveLobbyBtn) {
+  leaveLobbyBtn.addEventListener('click', function() {
+    showStartScreen();
+  });
+}
 
 aiCountBtns.forEach(btn => {
   btn.addEventListener('click', function() {
@@ -907,10 +1529,20 @@ difficultyBtns.forEach(btn => {
 
 lengthBtns.forEach(btn => {
   btn.addEventListener('click', function() {
-    lengthBtns.forEach(otherBtn => otherBtn.classList.remove('selected'));
-    btn.classList.add('selected');
-    selectedLength = btn.dataset.length || 'medium';
+    const nextLength = btn.dataset.length || 'medium';
+    syncLengthSelection(nextLength);
     updateStartButton();
+  });
+});
+
+lobbyLengthBtns.forEach(btn => {
+  btn.addEventListener('click', function() {
+    const nextLength = btn.dataset.length || 'medium';
+    syncLengthSelection(nextLength);
+
+    if (canEditLobbyOptions()) {
+      updateLobbyLength(nextLength);
+    }
   });
 });
 
@@ -924,6 +1556,9 @@ singleplayerOption.addEventListener('click', function() {
   aiSelector.classList.add('visible');
   difficultySelector.classList.add('visible');
   lengthSelector.classList.add('visible');
+  if (multiplayerSetup) {
+    multiplayerSetup.style.display = 'none';
+  }
   singleplayerOption.setAttribute('aria-pressed', 'true');
   startStatusMessage.textContent = '';
   updateStartButton();
@@ -944,9 +1579,15 @@ if (multiplayerOption) {
     singleplayerOption.classList.remove('selected');
     singleplayerOption.setAttribute('aria-pressed', 'false');
     aiSelector.classList.remove('visible');
+    if (multiplayerSetup) {
+      multiplayerSetup.style.display = 'flex';
+    }
+    if (multiStatusMsg) {
+      setMultiStatus('Create a session or join with a code.');
+    }
     difficultySelector.classList.remove('visible');
     lengthSelector.classList.remove('visible');
-    startStatusMessage.textContent = 'Multiplayer is coming soon for Pattern Forge.';
+    startStatusMessage.textContent = '';
     updateStartButton();
   });
 
