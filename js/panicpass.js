@@ -13,6 +13,9 @@ const roundNumber        = document.querySelector('#round-number');
 const playersCount       = document.querySelector('#players-count');
 const startScreen        = document.querySelector('#start-screen');
 const gameScreen         = document.querySelector('#game-screen');
+const summaryScreen      = document.querySelector('#summary-screen');
+const summaryWinner      = document.querySelector('#summary-winner');
+const summaryList        = document.querySelector('#summary-list');
 const singleplayerOption = document.querySelector('#singleplayer-option');
 const multiplayerOption  = document.querySelector('#multiplayer-option');
 const aiSelector         = document.querySelector('#ai-selector');
@@ -51,6 +54,7 @@ let selectedGameMode          = null;
 let selectedAICount           = 2;
 let selectedDifficulty        = null;
 let returnToStartTimeout      = null;
+let summaryReturnTimeout      = null;
 let gameFlowTimeout           = null;
 let roundTransitionTimeout    = null;
 let uiRefreshTimeout          = null;
@@ -104,9 +108,75 @@ function setWordInputState({
 function clearGameTimeouts() {
     clearTimeout(aiTypingTimeout);
     clearTimeout(returnToStartTimeout);
+    clearTimeout(summaryReturnTimeout);
     clearTimeout(gameFlowTimeout);
     clearTimeout(roundTransitionTimeout);
     clearTimeout(uiRefreshTimeout);
+}
+
+/**
+ * Renders the summary screen with winner text and standings.
+ *
+ * @param {string} winnerText - Winner status text.
+ * @param {Array} ranking - Ordered player list for summary standings.
+ */
+function showSummaryScreen(winnerText, ranking) {
+    console.log('Debug | showSummaryScreen called with:', { winnerText, rankingCount: ranking?.length });
+    console.log('Debug | DOM elements available:', { summaryScreen: !!summaryScreen, summaryWinner: !!summaryWinner, summaryList: !!summaryList });
+
+    if (startScreen) startScreen.style.display = 'none';
+    if (gameScreen) gameScreen.style.display = 'none';
+
+    if (!summaryScreen || !summaryWinner || !summaryList) {
+        console.warn('Warning | Summary DOM elements not found, using fallback');
+        if (statusMessage) statusMessage.textContent = winnerText;
+        return;
+    }
+
+    summaryWinner.textContent = winnerText;
+    summaryList.innerHTML = '';
+
+    ranking.forEach((player, index) => {
+        const li = document.createElement('li');
+        li.className = 'summary-item';
+        const state = player.eliminated ? 'Eliminated' : 'Winner';
+        li.textContent = `${index + 1}. ${player.name} - ${state}`;
+        summaryList.appendChild(li);
+    });
+
+    summaryScreen.style.display = 'flex';
+    console.log('Debug | Summary screen displayed');
+}
+
+/**
+ * Builds summary ranking with active players first.
+ *
+ * @returns {Array} Ordered players for summary rendering.
+ */
+function buildSummaryRanking() {
+    return [...players].sort((a, b) => {
+        if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+        return a.name.localeCompare(b.name);
+    });
+}
+
+/**
+ * Shows summary then returns to start screen after a delay.
+ *
+ * @param {string} winnerText - Winner status text.
+ */
+function showSummaryThenReturn(winnerText) {
+    console.log('Debug | showSummaryThenReturn called with:', winnerText);
+    showSummaryScreen(winnerText, buildSummaryRanking());
+
+    clearTimeout(summaryReturnTimeout);
+    summaryReturnTimeout = setTimeout(() => {
+        console.log('Debug | Summary timeout fired, returning to start screen');
+        if (selectedGameMode === 'multiplayer') {
+            resetMultiplayerState();
+        }
+        showStartScreen();
+    }, 5000);
 }
 
 /**
@@ -301,6 +371,7 @@ function showStartScreen() {
     console.group('Info | Showing start screen');
     startScreen.style.display      = 'flex';
     gameScreen.style.display       = 'none';
+    if (summaryScreen) summaryScreen.style.display = 'none';
     lobbyScreen.style.display      = 'none';
     multiplayerSetup.style.display = 'none';
     selectedGameMode = null;
@@ -328,6 +399,7 @@ function showGameScreen() {
     console.log('Info | Switching to game screen');
     startScreen.style.display = 'none';
     lobbyScreen.style.display = 'none';
+    if (summaryScreen) summaryScreen.style.display = 'none';
     gameScreen.style.display  = 'block';
 }
 
@@ -577,6 +649,16 @@ function explode() {
     renderPlayers(players);
     updatePlayersCount();
 
+    // In singleplayer, if the main player is eliminated, end the game immediately
+    if (selectedGameMode === 'singleplayer' && currentPlayer.name === 'You') {
+        const winnerText = 'You lost the game!';
+        statusMessage.textContent = winnerText;
+        console.log('Success | Singleplayer game over. Main player eliminated.');
+        console.groupEnd();
+        showSummaryThenReturn(winnerText);
+        return;
+    }
+
     const remainingPlayers = getRemainingPlayers();
     console.log('Info | Remaining players:', remainingPlayers.length);
 
@@ -588,28 +670,8 @@ function explode() {
         console.log('Success | Game completed. Winner:', winner?.name || 'None');
         console.groupEnd();
 
-        returnToStartTimeout = setTimeout(() => {
-            returnToStartScreen();
-        }, 5000);
+        showSummaryThenReturn(winnerText);
     } else {
-        if (!currentPlayer.isAI) {
-            console.log('Info | Player eliminated - ending game and returning to homepage');
-
-            statusMessage.textContent = `Boom! You lost. Returning to home...`;
-
-            gameActive = false;
-            clearInterval(timerInterval);
-
-            clearGameTimeouts();
-
-            returnToStartTimeout = setTimeout(() => {
-                returnToStartScreen();
-            }, 3000);
-
-            console.groupEnd();
-            return;
-        }
-
         console.log('Info | Continuing game with remaining players');
         console.groupEnd();
 
@@ -651,6 +713,15 @@ function explode() {
  * Passes bomb to next player and updates UI.
  */
 function passBomb() {
+        // In singleplayer, if the main player is eliminated, end the game
+        if (selectedGameMode === 'singleplayer' && currentPlayer.name === 'You') {
+            const winnerText = 'You lost the game!';
+            statusMessage.textContent = winnerText;
+            console.log('Success | Singleplayer game over. Main player eliminated.');
+            console.groupEnd();
+            showSummaryThenReturn(winnerText);
+            return;
+        }
     console.group('Debug | Passing bomb');
 
     currentPlayerIndex = getNextAliveIndex(currentPlayerIndex);
@@ -1394,11 +1465,7 @@ function onGameOver(msg) {
 
     if (msg.reason) text += ` (${msg.reason})`;
     statusMessage.textContent = text;
-
-    setTimeout(() => {
-        resetMultiplayerState();
-        returnToStartScreen();
-    }, 5000);
+    showSummaryThenReturn(text);
 }
 
 /**

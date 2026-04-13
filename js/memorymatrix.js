@@ -7,6 +7,9 @@ const startStatusMessage = document.querySelector('#start-status-message');
 const gameStatusMessage  = document.querySelector('#game-status-message');
 const startScreen        = document.querySelector('#start-screen');
 const gameScreen         = document.querySelector('#game-screen');
+const summaryScreen      = document.querySelector('#summary-screen');
+const summaryWinner      = document.querySelector('#summary-winner');
+const summaryList        = document.querySelector('#summary-list');
 const singleplayerOption = document.querySelector('#singleplayer-option');
 const multiplayerOption  = document.querySelector('#multiplayer-option');
 const aiSelector         = document.querySelector('#ai-selector');
@@ -57,6 +60,7 @@ let playbackTimeoutIds    = [];
 let transitionTimeoutId   = null;
 let pendingTurnResolver   = null;
 let currentGridSize       = 3;
+let summaryReturnTimeout  = null;
 
 /* Multiplayer state variables */
 let ws                   = null;
@@ -91,6 +95,7 @@ function showStartScreen() {
 
     startScreen.style.display = 'flex';
     gameScreen.style.display  = 'none';
+    if (summaryScreen) summaryScreen.style.display = 'none';
     if (lobbyScreen) lobbyScreen.style.display = 'none';
     if (multiplayerSetup) multiplayerSetup.style.display = 'none';
 
@@ -124,7 +129,69 @@ function showStartScreen() {
 function showGameScreen() {
     startScreen.style.display = 'none';
     if (lobbyScreen) lobbyScreen.style.display = 'none';
+    if (summaryScreen) summaryScreen.style.display = 'none';
     gameScreen.style.display  = 'block';
+}
+
+/**
+ * Renders the summary screen with winner text and standings.
+ *
+ * @param {string} winnerText - Winner status text.
+ * @param {Array} ranking - Ordered player list for summary standings.
+ */
+function showSummaryScreen(winnerText, ranking) {
+    if (startScreen) startScreen.style.display = 'none';
+    if (gameScreen) gameScreen.style.display = 'none';
+
+    if (!summaryScreen || !summaryWinner || !summaryList) {
+        if (gameStatusMessage) gameStatusMessage.textContent = winnerText;
+        return;
+    }
+
+    summaryWinner.textContent = winnerText;
+    summaryList.innerHTML = '';
+
+    ranking.forEach((player, index) => {
+        const li = document.createElement('li');
+        li.className = 'summary-item';
+        const state = player.eliminated ? 'Eliminated' : `${player.lives} lives`;
+        li.textContent = `${index + 1}. ${player.name} - ${state}`;
+        summaryList.appendChild(li);
+    });
+
+    summaryScreen.style.display = 'flex';
+}
+
+/**
+ * Builds summary ranking with active players first, then by lives.
+ *
+ * @returns {Array} Ordered players for summary rendering.
+ */
+function buildSummaryRanking() {
+    return [...players].sort((a, b) => {
+        if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+        const aLives = a.lives || 0;
+        const bLives = b.lives || 0;
+        if (aLives !== bLives) return bLives - aLives;
+        return a.name.localeCompare(b.name);
+    });
+}
+
+/**
+ * Shows summary then returns to start screen after a delay.
+ *
+ * @param {string} winnerText - Winner status text.
+ */
+function showSummaryThenReturn(winnerText) {
+    showSummaryScreen(winnerText, buildSummaryRanking());
+
+    clearTimeout(summaryReturnTimeout);
+    summaryReturnTimeout = setTimeout(() => {
+        if (selectedMode === 'multiplayer') {
+            resetMultiplayerState();
+        }
+        showStartScreen();
+    }, 5000);
 }
 
 /**
@@ -143,6 +210,7 @@ function clearAllTimers() {
     clearInterval(timerInterval);
     clearTimeout(activeCellTimeout);
     clearTimeout(transitionTimeoutId);
+    clearTimeout(summaryReturnTimeout);
 
     playbackTimeoutIds.forEach(id => clearTimeout(id));
     playbackTimeoutIds = [];
@@ -604,10 +672,7 @@ function finishTurn(player, success) {
         acceptingInput = false;
         clearAllTimers();
         gameStatusMessage.textContent = 'You failed the sequence. Game over.';
-
-        transitionTimeoutId = setTimeout(() => {
-            showStartScreen();
-        }, 3500);
+        showSummaryThenReturn('You failed the sequence. Game over.');
         return;
     }
 
@@ -617,10 +682,7 @@ function finishTurn(player, success) {
         const winnerText = winner ? `${winner.name} wins the game!` : 'No winner this time.';
         gameStatusMessage.textContent = winnerText;
         gameActive = false;
-
-        transitionTimeoutId = setTimeout(() => {
-            showStartScreen();
-        }, 4500);
+        showSummaryThenReturn(winnerText);
         return;
     }
 
@@ -1205,11 +1267,7 @@ function onGameOver(msg) {
 
     if (msg.reason) text += ` (${msg.reason})`;
     if (gameStatusMessage) gameStatusMessage.textContent = text;
-
-    setTimeout(() => {
-        resetMultiplayerState();
-        showStartScreen();
-    }, 4500);
+    showSummaryThenReturn(text);
 }
 
 /**

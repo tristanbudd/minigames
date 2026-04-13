@@ -13,6 +13,9 @@ const roundNumber        = document.querySelector('#round-number');
 const timeLabel          = document.querySelector('#time-label');
 const startScreen        = document.querySelector('#start-screen');
 const gameScreen         = document.querySelector('#game-screen');
+const summaryScreen      = document.querySelector('#summary-screen');
+const summaryWinner      = document.querySelector('#summary-winner');
+const summaryList        = document.querySelector('#summary-list');
 const singleplayerOption = document.querySelector('#singleplayer-option');
 const multiplayerOption  = document.querySelector('#multiplayer-option');
 const aiSelector         = document.querySelector('#ai-selector');
@@ -56,6 +59,7 @@ let currentPlayerIndex     = 0;
 let players                = [];
 let roundsPerStage         = 3;
 let turnsCompletedThisRound = 0;
+let summaryReturnTimeout    = null;
 
 /* Multiplayer state variables */
 let ws                   = null;
@@ -85,6 +89,7 @@ console.groupEnd();
 function showStartScreen() {
     startScreen.style.display = 'flex';
     gameScreen.style.display  = 'none';
+    if (summaryScreen) summaryScreen.style.display = 'none';
     if (lobbyScreen) lobbyScreen.style.display = 'none';
     if (multiplayerSetup) multiplayerSetup.style.display = 'none';
     selectedMode = null;
@@ -107,7 +112,66 @@ function showStartScreen() {
 function showGameScreen() {
     startScreen.style.display = 'none';
     if (lobbyScreen) lobbyScreen.style.display = 'none';
+    if (summaryScreen) summaryScreen.style.display = 'none';
     gameScreen.style.display  = 'block';
+}
+
+/**
+ * Renders the summary screen with winner text and standings.
+ *
+ * @param {string} winnerText - Winner status text.
+ * @param {Array} ranking - Ordered player list for summary standings.
+ */
+function showSummaryScreen(winnerText, ranking) {
+    if (startScreen) startScreen.style.display = 'none';
+    if (gameScreen) gameScreen.style.display = 'none';
+
+    if (!summaryScreen || !summaryWinner || !summaryList) {
+        if (gameStatusMessage) gameStatusMessage.textContent = winnerText;
+        return;
+    }
+
+    summaryWinner.textContent = winnerText;
+    summaryList.innerHTML = '';
+
+    ranking.forEach((player, index) => {
+        const li = document.createElement('li');
+        li.className = 'summary-item';
+        const state = player.eliminated ? 'Eliminated' : 'Winner';
+        li.textContent = `${index + 1}. ${player.name} - ${state}`;
+        summaryList.appendChild(li);
+    });
+
+    summaryScreen.style.display = 'flex';
+}
+
+/**
+ * Builds summary ranking with active players first.
+ *
+ * @returns {Array} Ordered players for summary rendering.
+ */
+function buildSummaryRanking() {
+    return [...players].sort((a, b) => {
+        if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+        return a.name.localeCompare(b.name);
+    });
+}
+
+/**
+ * Shows summary then returns to start screen after a delay.
+ *
+ * @param {string} winnerText - Winner status text.
+ */
+function showSummaryThenReturn(winnerText) {
+    showSummaryScreen(winnerText, buildSummaryRanking());
+
+    clearTimeout(summaryReturnTimeout);
+    summaryReturnTimeout = setTimeout(() => {
+        if (selectedMode === 'multiplayer') {
+            resetMultiplayerState();
+        }
+        showStartScreen();
+    }, 5000);
 }
 
 /**
@@ -759,15 +823,18 @@ function advanceToNextPlayer() {
  */
 function endGame() {
     const winner = remainingPlayers()[0];
+    const winnerText = winner
+        ? (winner.isAI ? `${winner.name} wins the match!` : 'You won the match!')
+        : 'Game over!';
+
     if (gameStatusMessage) {
-        gameStatusMessage.textContent = winner
-            ? (winner.isAI ? `${winner.name} wins the match!` : 'You won the match!')
-            : 'Game over!';
+        gameStatusMessage.textContent = winnerText;
     }
+
     clearInterval(timerInterval);
     clearInterval(aiMoveInterval);
     clearTimeout(roundTimeout);
-    setTimeout(showStartScreen, 3000);
+    showSummaryThenReturn(winnerText);
 }
 
 /**
@@ -1303,11 +1370,7 @@ function onGameOver(msg) {
 
     if (msg.reason) text += ` (${msg.reason})`;
     if (gameStatusMessage) gameStatusMessage.textContent = text;
-
-    setTimeout(() => {
-        resetMultiplayerState();
-        showStartScreen();
-    }, 5000);
+    showSummaryThenReturn(text);
 }
 
 /**

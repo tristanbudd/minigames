@@ -18,7 +18,7 @@
     <!-- Style Sheets -->
     <link rel="stylesheet" href="css/override.css">
     <link rel="stylesheet" href="css/global.css">
-    <link rel="stylesheet" href="css/maze.css">
+    <link rel="stylesheet" href="css/mazerun.css">
 
     <!-- JavaScript -->
     <script>
@@ -28,7 +28,7 @@
 
     <script src="js/burgermenu.js" defer></script>
     <script src="js/navbar.js" defer></script>
-    <script src="js/maze.js" defer></script>
+    <script src="js/mazerun.js" defer></script>
 </head>
 <body>
     <!-- Unsupported Resolution Warning -->
@@ -56,7 +56,7 @@
                 </svg>
                 Panic Pass
             </a>
-            <a href="maze.html" role="menuitem" class="active" aria-disabled="true" disabled>
+            <a href="mazerun.html" role="menuitem" class="active" aria-disabled="true" disabled>
                 <svg xmlns="http://www.w3.org/2000/svg"
                      viewBox="0 0 512 512"
                      aria-hidden="true">
@@ -111,7 +111,7 @@
                     </svg>
                     Panic Pass
                 </a>
-                <a href="maze.html" role="menuitem" class="active" aria-disabled="true" disabled>
+                <a href="mazerun.html" role="menuitem" class="active" aria-disabled="true" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg"
                          viewBox="0 0 512 512"
                          aria-hidden="true">
@@ -286,6 +286,13 @@
             <button id="leave-game-btn" class="game-button secondary" type="button">Leave Game</button>
         </section>
 
+        </section>
+
+        <section id="summary-screen" class="summary-screen" style="display: none;" aria-label="Game summary">
+            <h3 class="summary-title">Match Summary</h3>
+            <p id="summary-winner" class="summary-winner"></p>
+            <ul id="summary-list" class="summary-list" role="list"></ul>
+            <p class="summary-note">Returning to menu...</p>
         </section>
 
     </section>
