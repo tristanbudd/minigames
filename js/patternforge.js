@@ -733,6 +733,9 @@ function getWinnerSummary() {
   const winners = players.filter(player => Math.abs(player.points - maxPoints) < 0.0001);
 
   if (winners.length === 1) {
+    if (winners[0].id === 'you') {
+      return `You win with ${maxPoints} points.`;
+    }
     return `${winners[0].name} wins with ${maxPoints} points.`;
   }
 
