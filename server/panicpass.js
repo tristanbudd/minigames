@@ -35,6 +35,26 @@ console.log('Info | Max players per session:', MAX_PLAYERS_PER_SESSION);
 console.groupEnd();
 
 /**
+ * Cancels the game session due to a critical system error.
+ * * @param {Object} session - The active session.
+ * @param {string} reason - Error message for the clients.
+ */
+function handleCriticalError(session, reason) {
+    clearSessionTimer(session);
+    session.phase = 'finished';
+
+    broadcast(session, {
+        type: 'error',
+        message: reason,
+        fatal: true
+    });
+
+    console.log(`Critical | Session ${session.code} cancelled: ${reason}`);
+
+    setTimeout(() => sessions.delete(session.code), 5000);
+}
+
+/**
  * Loads fallback words from local words.txt file.
  * Called once at startup; safe to call multiple times.
  *
@@ -117,8 +137,15 @@ async function getRandomWord() {
         console.groupEnd();
         return word;
     } catch {
-        console.log('Debug | API failed, using fallback');
+        console.log('Debug | API failed, checking fallback list');
         const word = getRandomFallbackWord();
+
+        if (!word || word === 'error') {
+            console.log('Critical | No words available in API or fallback list');
+            console.groupEnd();
+            throw new Error('WORD_GENERATION_FAILED');
+        }
+
         console.log('Debug | Fallback word selected:', word);
         console.groupEnd();
         return word;
@@ -340,29 +367,34 @@ function advanceToNextPlayer(session) {
  * @param {Object} session - The session.
  */
 async function startTurn(session) {
-    session.currentWord = await getRandomWord();
-    const currentPlayer = getCurrentPlayer(session);
+    try {
+        session.currentWord = await getRandomWord();
+        const currentPlayer = getCurrentPlayer(session);
 
-    if (!currentPlayer) {
-        console.log('Error | No current player found, aborting turn');
-        return;
+        if (!currentPlayer) {
+            console.log('Error | No current player found, aborting turn');
+            return;
+        }
+
+        const active = getActivePlayers(session);
+        console.log('Info | Round', session.currentRound, '-', currentPlayer.name + "'s turn, word:", session.currentWord);
+
+        broadcast(session, {
+            type: 'turn_start',
+            currentPlayerId: currentPlayer.id,
+            word: session.currentWord,
+            round: session.currentRound,
+            timerSeconds: getTimerForRound(session.currentRound),
+            players: getPlayerList(session),
+            playersRemaining: active.length,
+        });
+
+        startSessionTimer(session);
+    } catch (err) {
+        if (err.message === 'WORD_GENERATION_FAILED') {
+            handleCriticalError(session, "Game cancelled: Could not generate a game word.");
+        }
     }
-
-    const active = getActivePlayers(session);
-
-    console.log('Info | Round', session.currentRound, '-', currentPlayer.name + "'s turn, word:", session.currentWord);
-
-    broadcast(session, {
-        type: 'turn_start',
-        currentPlayerId: currentPlayer.id,
-        word: session.currentWord,
-        round: session.currentRound,
-        timerSeconds: getTimerForRound(session.currentRound),
-        players: getPlayerList(session),
-        playersRemaining: active.length,
-    });
-
-    startSessionTimer(session);
 }
 
 /**
@@ -557,11 +589,6 @@ async function handleStartGame(ws, session) {
     session.currentRound = 1;
     session.playersCompletedThisRound = 0;
 
-    console.group('Info | Game starting');
-    console.log('Info | Session:', session.code);
-    console.log('Info | Players:', session.players.size);
-    console.groupEnd();
-
     broadcast(session, {
         type: 'game_started',
         players: getPlayerList(session),
@@ -569,7 +596,13 @@ async function handleStartGame(ws, session) {
         timerSeconds: getTimerForRound(session.currentRound),
     });
 
-    await startTurn(session);
+    try {
+        await startTurn(session);
+    } catch (err) {
+        if (err.message === 'WORD_GENERATION_FAILED') {
+            handleCriticalError(session, "Game cancelled: Could not generate a game word.");
+        }
+    }
 }
 
 /**

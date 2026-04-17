@@ -85,6 +85,22 @@ console.log('Info | Game variables initialized');
 console.groupEnd();
 
 /**
+ * Handles a critical failure in singleplayer (e.g., word generation failed).
+ * Alerts the user and resets the game state.
+ * * @param {string} reason - The error message to display.
+ */
+function handleSingleplayerError(reason) {
+    console.error('Critical | Singleplayer Error:', reason);
+    gameActive = false;
+    clearGameTimeouts();
+    clearInterval(timerInterval);
+
+    alert(reason);
+
+    resetGame();
+}
+
+/**
  * Sets the state of the word input field, including enabling/disabling, opacity, placeholder text, and optionally clearing the input and focusing it.
  */
 function setWordInputState({
@@ -689,8 +705,14 @@ function explode() {
             roundTransitionTimeout = setTimeout(async function() {
                 if (gameActive) {
                     currentWord = await getRandomWord();
-                    updateWordDisplay('');
+                    
+                    if (currentWord === 'error') {
+                        handleSingleplayerError("Game interrupted: Word generation failed.");
+                        return;
+                    }
 
+                    updateWordDisplay('');
+                    
                     const currentPlayer = players[currentPlayerIndex];
                     if (currentPlayer.isAI) {
                         statusMessage.textContent = '';
@@ -878,6 +900,12 @@ function startAITurn() {
 async function getNewWordAndPassBomb() {
     console.log('Debug | Getting new word and passing bomb');
     currentWord = await getRandomWord();
+    
+    if (currentWord === 'error') {
+        handleSingleplayerError("Game interrupted: Could not generate a new word.");
+        return;
+    }
+    
     updateWordDisplay('');
     passBomb();
 }
@@ -977,13 +1005,21 @@ async function startGame() {
 
     renderPlayers(players);
 
-    currentWord = await getRandomWord();
-    updateWordDisplay('');
+    try {
+        currentWord = await getRandomWord();
 
-    statusMessage.textContent = '';
+        if (currentWord === 'error') {
+            handleSingleplayerError("Could not start game: Word generation failed.");
+            return;
+        }
 
-    startTimer();
-
+        showGameScreen();
+        updateWordDisplay('');
+        statusMessage.textContent = '';
+        startTimer();
+    } catch (err) {
+        handleSingleplayerError("An unexpected error occurred while starting the game.");
+    }
     console.groupEnd();
 }
 
