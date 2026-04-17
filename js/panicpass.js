@@ -224,7 +224,6 @@ function scheduleNextTurn() {
         if (!gameActive) return;
         setTimeout(function() {
             if (!gameActive) return;
-            startTimer();
             getNewWordAndPassBomb();
         }, 1500);
     }, 1000);
@@ -914,8 +913,8 @@ async function getNewWordAndPassBomb() {
         setWordInputState({ 
             disabled: false, 
             opacity: '1', 
-            placeholder: 'Type here...', 
-            focus: true 
+            placeholder: 'Waiting for word...', 
+            focus: false 
         });
     }
 
@@ -928,9 +927,21 @@ async function getNewWordAndPassBomb() {
 
     currentWord = newWord;
 
-    if (gameActive && currentPlayer.isAI) {
-        clearTimeout(aiTypingTimeout);
-        animateAITyping();
+    if (gameActive) {
+        startTimer();
+        
+        if (currentPlayer.isAI) {
+            clearTimeout(aiTypingTimeout);
+            animateAITyping();
+        } else {
+            setWordInputState({ 
+                disabled: false, 
+                opacity: '1', 
+                placeholder: 'Type here...', 
+                focus: true,
+                clear: true 
+            });
+        }
     }
 }
 
