@@ -1,0 +1,24 @@
+name: Test Minification Action
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: tristanbudd/minified-branch-github-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          target_branch: 'production'
+          hash_files: 'true'
