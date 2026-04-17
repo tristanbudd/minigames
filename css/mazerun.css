@@ -126,6 +126,7 @@
   border-radius: 0.75rem;
   background: linear-gradient(180deg, #ffffff 0%, #f6f6f6 100%);
   box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.08);
+  cursor: crosshair;
 }
 
 .maze-grid {
