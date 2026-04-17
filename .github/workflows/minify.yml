@@ -1,9 +1,9 @@
-name: Test Minification Action
+name: Minify CSS and JS
 
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 permissions:
