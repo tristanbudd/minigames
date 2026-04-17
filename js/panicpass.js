@@ -898,16 +898,40 @@ function startAITurn() {
  * Gets new word and passes bomb to next player.
  */
 async function getNewWordAndPassBomb() {
-    console.log('Debug | Getting new word and passing bomb');
-    currentWord = await getRandomWord();
+    currentPlayerIndex = getNextAliveIndex(currentPlayerIndex);
+    const currentPlayer = players[currentPlayerIndex];
     
-    if (currentWord === 'error') {
+    renderPlayers(players);
+    updateWordDisplay('');
+
+    if (currentPlayer.isAI) {
+        setWordInputState({ 
+            disabled: true, 
+            opacity: '0.5', 
+            placeholder: `${currentPlayer.name} is typing...` 
+        });
+    } else {
+        setWordInputState({ 
+            disabled: false, 
+            opacity: '1', 
+            placeholder: 'Type here...', 
+            focus: true 
+        });
+    }
+
+    const newWord = await getRandomWord();
+
+    if (newWord === 'error') {
         handleSingleplayerError("Game interrupted: Could not generate a new word.");
         return;
     }
-    
-    updateWordDisplay('');
-    passBomb();
+
+    currentWord = newWord;
+
+    if (gameActive && currentPlayer.isAI) {
+        clearTimeout(aiTypingTimeout);
+        animateAITyping();
+    }
 }
 
 /**
