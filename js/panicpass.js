@@ -941,6 +941,7 @@ async function getNewWordAndPassBomb() {
                 focus: true,
                 clear: true 
             });
+            updateWordDisplay('');
         }
     }
 }
