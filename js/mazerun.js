@@ -1493,7 +1493,17 @@ if (startGameBtn) {
 }
 
 if (leaveGameBtn) leaveGameBtn.addEventListener('click', leaveGame);
-if (mazeGrid)     mazeGrid.addEventListener('click', handleCellClick);
+if (mazeGrid) {
+    mazeGrid.addEventListener('click', handleCellClick);
+    mazeGrid.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (!target) return;
+        const fakeEvent = { target };
+        handleCellClick(fakeEvent);
+    }, { passive: false });
+}
 window.addEventListener('keydown', handleKeyDown);
 
 aiCountBtns.forEach(btn => btn.addEventListener('click', () => selectAICount(parseInt(btn.dataset.count))));
